@@ -43,7 +43,7 @@ class GeminiLiveClient:
     def _build_config(self) -> types.LiveConnectConfig:
         """Build the Live API connection config."""
         config = types.LiveConnectConfig(
-            response_modalities=["AUDIO", "TEXT"],
+            response_modalities=["AUDIO"],
             system_instruction=types.Content(
                 parts=[types.Part(text=self.system_instruction)]
             ),
