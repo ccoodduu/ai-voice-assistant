@@ -124,16 +124,20 @@ class PhoneAudioBridge:
                 "input_format": {"sample_rate": 16000, "channels": 1, "encoding": "pcm_s16le"},
                 "output_format": {"sample_rate": 24000, "channels": 1, "encoding": "pcm_s16le"},
             })
+            logger.info(f"Session {self.session_id}: Sent session_ready, starting tasks")
 
             async with asyncio.TaskGroup() as tg:
                 tg.create_task(self._receive_from_phone())
                 tg.create_task(self._receive_from_gemini())
 
-        except* websockets.ConnectionClosed:
-            logger.info(f"Session {self.session_id}: Phone disconnected")
-        except* Exception as e:
-            logger.error(f"Session {self.session_id}: Error - {e}")
-            await self._send_error("session_error", str(e))
+        except* websockets.ConnectionClosed as eg:
+            logger.info(f"Session {self.session_id}: Phone disconnected - {eg.exceptions}")
+        except* Exception as eg:
+            logger.error(f"Session {self.session_id}: Error - {eg.exceptions}")
+            try:
+                await self._send_error("session_error", str(eg.exceptions))
+            except:
+                pass
         finally:
             self._running = False
             logger.info(f"Session {self.session_id}: Ended")
@@ -156,6 +160,7 @@ class PhoneAudioBridge:
 
     async def _receive_from_gemini(self):
         """Receive responses from Gemini and forward to phone."""
+        logger.info(f"Session {self.session_id}: Connecting to Gemini...")
         async for event in self.gemini.connect():
             if not self._running:
                 break

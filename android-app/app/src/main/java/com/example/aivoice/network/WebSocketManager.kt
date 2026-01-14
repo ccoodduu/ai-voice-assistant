@@ -1,5 +1,6 @@
 package com.example.aivoice.network
 
+import android.util.Log
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -11,6 +12,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
@@ -83,6 +85,7 @@ class WebSocketManager {
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                Log.e("WebSocketManager", "Connection failed", t)
                 _connectionState.tryEmit(ConnectionState.ERROR)
                 _events.tryEmit(WebSocketEvent.Error("connection_failed", t.message ?: "Unknown error"))
             }
@@ -123,15 +126,19 @@ class WebSocketManager {
                 }
             }
         } catch (e: Exception) {
-            // Ignore malformed JSON
+            Log.e("WebSocketManager", "Error parsing JSON", e)
         }
     }
 
     private fun sendHello(clientId: String) {
+        val capabilities = JSONArray().apply {
+            put("audio_input")
+            put("audio_output")
+        }
         val json = JSONObject().apply {
             put("type", "hello")
             put("client_id", clientId)
-            put("capabilities", listOf("audio_input", "audio_output"))
+            put("capabilities", capabilities)
         }
         webSocket?.send(json.toString())
     }

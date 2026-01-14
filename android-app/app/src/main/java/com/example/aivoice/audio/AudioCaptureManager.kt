@@ -1,6 +1,7 @@
 package com.example.aivoice.audio
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
@@ -24,6 +25,7 @@ class AudioCaptureManager {
         AudioFormat.ENCODING_PCM_16BIT
     ).coerceAtLeast(AudioConfig.INPUT_CHUNK_SIZE * 2)
 
+    @SuppressLint("MissingPermission")
     fun startCapture(): Flow<ByteArray> = flow {
         if (isRecording) return@flow
 
@@ -58,10 +60,13 @@ class AudioCaptureManager {
         }
     }.flowOn(Dispatchers.IO)
 
+    @Synchronized
     fun stopCapture() {
-        isRecording = false
-        audioRecord?.stop()
-        audioRecord?.release()
-        audioRecord = null
+        if (isRecording) {
+            isRecording = false
+            audioRecord?.stop()
+            audioRecord?.release()
+            audioRecord = null
+        }
     }
 }

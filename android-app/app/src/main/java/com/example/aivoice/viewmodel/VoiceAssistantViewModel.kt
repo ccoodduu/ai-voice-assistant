@@ -8,10 +8,16 @@ import com.example.aivoice.audio.AudioPlaybackManager
 import com.example.aivoice.network.ConnectionState
 import com.example.aivoice.network.WebSocketEvent
 import com.example.aivoice.network.WebSocketManager
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -24,6 +30,7 @@ data class UiState(
     val errorMessage: String? = null
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class VoiceAssistantViewModel(application: Application) : AndroidViewModel(application) {
 
     private val webSocketManager = WebSocketManager()
@@ -33,11 +40,10 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    private var audioCaptureJob: Job? = null
-
     init {
         observeWebSocketEvents()
         observeConnectionState()
+        observeAndCaptureAudio()
     }
 
     private fun observeWebSocketEvents() {
@@ -49,7 +55,6 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                     }
                     is WebSocketEvent.SessionReady -> {
                         audioPlaybackManager.initialize()
-                        startAudioCapture()
                     }
                     is WebSocketEvent.AudioReceived -> {
                         viewModelScope.launch {
@@ -70,7 +75,6 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                         }
                     }
                     is WebSocketEvent.Disconnected -> {
-                        stopAudioCapture()
                         audioPlaybackManager.release()
                     }
                 }
@@ -86,6 +90,22 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    private fun observeAndCaptureAudio() {
+        uiState.map { it.connectionState }
+            .distinctUntilChanged()
+            .flatMapLatest { state ->
+                if (state == ConnectionState.CONNECTED) {
+                    _uiState.update { it.copy(isListening = true) }
+                    audioCaptureManager.startCapture()
+                } else {
+                    _uiState.update { it.copy(isListening = false) }
+                    flow { }
+                }
+            }.onEach { audioData ->
+                webSocketManager.sendAudio(audioData)
+            }.launchIn(viewModelScope)
+    }
+
     fun updateServerUrl(url: String) {
         _uiState.update { it.copy(serverUrl = url) }
     }
@@ -96,25 +116,7 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
     }
 
     fun disconnect() {
-        stopAudioCapture()
-        audioPlaybackManager.release()
         webSocketManager.disconnect()
-    }
-
-    private fun startAudioCapture() {
-        audioCaptureJob = viewModelScope.launch {
-            _uiState.update { it.copy(isListening = true) }
-            audioCaptureManager.startCapture().collect { audioData ->
-                webSocketManager.sendAudio(audioData)
-            }
-        }
-    }
-
-    private fun stopAudioCapture() {
-        audioCaptureJob?.cancel()
-        audioCaptureJob = null
-        audioCaptureManager.stopCapture()
-        _uiState.update { it.copy(isListening = false) }
     }
 
     override fun onCleared() {
