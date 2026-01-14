@@ -179,6 +179,9 @@ class PhoneAudioBridge:
             elif event["type"] == "audio":
                 await self.websocket.send(event["data"])
 
+            elif event["type"] == "turn_complete":
+                logger.info(f"Session {self.session_id}: Gemini turn complete")
+
             elif event["type"] == "text":
                 await self._send_json({
                     "type": "transcript",
