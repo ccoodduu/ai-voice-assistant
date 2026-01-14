@@ -27,31 +27,37 @@ class MCPBridge:
         self.sessions: dict[str, ClientSession] = {}
         self.tools: dict[str, dict] = {}
 
-    async def connect(self, sse_url: str = "http://localhost:8100/sse"):
-        """Connect to MCP server via SSE."""
-        try:
-            sse_transport = await self.exit_stack.enter_async_context(
-                sse_client(sse_url)
-            )
-            read, write = sse_transport
-            session = await self.exit_stack.enter_async_context(
-                ClientSession(read, write)
-            )
-            await session.initialize()
-            self.sessions["tasker"] = session
+    async def connect(self, sse_url: str = "http://localhost:8100/sse", retries: int = 5):
+        """Connect to MCP server via SSE with retry logic."""
+        for attempt in range(retries):
+            try:
+                sse_transport = await self.exit_stack.enter_async_context(
+                    sse_client(sse_url)
+                )
+                read, write = sse_transport
+                session = await self.exit_stack.enter_async_context(
+                    ClientSession(read, write)
+                )
+                await session.initialize()
+                self.sessions["tasker"] = session
 
-            response = await session.list_tools()
-            for tool in response.tools:
-                self.tools[tool.name] = {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "input_schema": tool.inputSchema,
-                }
-            logger.info(f"Connected to MCP with {len(self.tools)} tools")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to connect to MCP: {e}")
-            return False
+                response = await session.list_tools()
+                for tool in response.tools:
+                    self.tools[tool.name] = {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "input_schema": tool.inputSchema,
+                    }
+                logger.info(f"Connected to MCP with {len(self.tools)} tools")
+                return True
+            except Exception as e:
+                logger.warning(f"MCP connection attempt {attempt + 1}/{retries} failed: {e}")
+                if attempt < retries - 1:
+                    await asyncio.sleep(2)
+                    self.exit_stack = AsyncExitStack()
+                else:
+                    logger.error(f"Failed to connect to MCP after {retries} attempts")
+                    return False
 
     def get_gemini_tool_declarations(self) -> list[dict]:
         """Convert MCP tools to Gemini function declarations format."""
