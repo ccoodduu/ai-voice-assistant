@@ -10,6 +10,8 @@ services:
       - TASKER_PHONE_PORT=${TASKER_PHONE_PORT:-1821}
       - TASKER_TIMEOUT=${TASKER_TIMEOUT:-5.0}
     network_mode: host
+    volumes:
+      - ./phone-tasker-mcp/tasker_mcp:/app/tasker_mcp:ro
 
   ai-server:
     build:
