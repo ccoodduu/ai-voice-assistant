@@ -11,6 +11,20 @@ services:
       - TASKER_TIMEOUT=${TASKER_TIMEOUT:-5.0}
     network_mode: host
 
+  ai-server:
+    build:
+      context: ./ai-server
+      dockerfile: Dockerfile
+    container_name: ai-server
+    restart: unless-stopped
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    network_mode: host
+    depends_on:
+      - tasker-mcp
+    command: ["python", "-m", "src.main", "--mode", "websocket", "--ws-port", "8765"]
+
+  # Legacy: gemini-live-mcp for local microphone mode
   gemini-live:
     build:
       context: ./gemini-live-mcp
@@ -28,3 +42,5 @@ services:
       - /dev/snd:/dev/snd
     volumes:
       - ./gemini-live-mcp/mcp_config.json:/app/mcp_config.json:ro
+    profiles:
+      - local

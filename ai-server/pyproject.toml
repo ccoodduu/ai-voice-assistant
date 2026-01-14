@@ -1,0 +1,28 @@
+[project]
+name = "ai-voice-server"
+version = "0.1.0"
+description = "Voice AI server using Gemini Multimodal Live API with MCP tool integration"
+requires-python = ">=3.10"
+dependencies = [
+    "google-genai>=0.3.0",
+    "pyaudio>=0.2.14",
+    "mcp[cli]>=1.6.0",
+    "websockets>=12.0",
+    "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[project.scripts]
+ai-server = "src.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

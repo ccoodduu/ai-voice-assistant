@@ -12,7 +12,6 @@ build/
 # Subprojects (separate repos)
 gemini-live-mcp/
 phone-tasker-mcp/
-ai-server/
 
 # Claude
 .claude/
