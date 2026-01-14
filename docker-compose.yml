@@ -1,0 +1,30 @@
+services:
+  tasker-mcp:
+    build:
+      context: ./phone-tasker-mcp
+      dockerfile: Dockerfile
+    container_name: tasker-mcp
+    restart: unless-stopped
+    environment:
+      - TASKER_PHONE_HOST=${TASKER_PHONE_HOST:-100.123.253.113}
+      - TASKER_PHONE_PORT=${TASKER_PHONE_PORT:-1821}
+      - TASKER_TIMEOUT=${TASKER_TIMEOUT:-5.0}
+    network_mode: host
+
+  gemini-live:
+    build:
+      context: ./gemini-live-mcp
+      dockerfile: Dockerfile
+    container_name: gemini-live
+    restart: "no"
+    stdin_open: true
+    tty: true
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    network_mode: host
+    depends_on:
+      - tasker-mcp
+    devices:
+      - /dev/snd:/dev/snd
+    volumes:
+      - ./gemini-live-mcp/mcp_config.json:/app/mcp_config.json:ro
