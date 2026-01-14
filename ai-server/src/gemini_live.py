@@ -103,9 +103,11 @@ class GeminiLiveClient:
     async def _handle_tool_call(self, tool_call) -> dict:
         """Handle function call from Gemini."""
         results = []
+        function_responses = []
 
         for fc in tool_call.function_calls:
             name = fc.name
+            call_id = fc.id
             args = dict(fc.args) if fc.args else {}
 
             try:
@@ -115,23 +117,29 @@ class GeminiLiveClient:
                     "success": True,
                     "result": result,
                 })
+                function_responses.append(
+                    types.FunctionResponse(
+                        id=call_id,
+                        name=name,
+                        response={"result": str(result)},
+                    )
+                )
             except Exception as e:
                 results.append({
                     "name": name,
                     "success": False,
                     "error": str(e),
                 })
-
-            response = types.LiveClientToolResponse(
-                function_responses=[
+                function_responses.append(
                     types.FunctionResponse(
+                        id=call_id,
                         name=name,
-                        response={"result": result if results[-1]["success"] else results[-1]["error"]},
+                        response={"error": str(e)},
                     )
-                    for name, result in [(r["name"], r.get("result", r.get("error"))) for r in results]
-                ]
-            )
-            await self.session.send(input=response)
+                )
+
+        response = types.LiveClientToolResponse(function_responses=function_responses)
+        await self.session.send(input=response)
 
         return {"type": "tool_calls", "data": results}
 
