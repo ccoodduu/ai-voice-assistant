@@ -68,9 +68,17 @@ class MCPBridge:
                 "description": tool["description"],
             }
             if tool["input_schema"].get("properties"):
+                clean_props = {}
+                for prop_name, prop_def in tool["input_schema"]["properties"].items():
+                    clean_prop = {"type": prop_def.get("type", "string")}
+                    if "description" in prop_def:
+                        clean_prop["description"] = prop_def["description"]
+                    if "enum" in prop_def:
+                        clean_prop["description"] = clean_prop.get("description", "") + f" (allowed values: {', '.join(prop_def['enum'])})"
+                    clean_props[prop_name] = clean_prop
                 declaration["parameters"] = {
                     "type": "object",
-                    "properties": tool["input_schema"]["properties"],
+                    "properties": clean_props,
                     "required": tool["input_schema"].get("required", []),
                 }
             declarations.append(declaration)
