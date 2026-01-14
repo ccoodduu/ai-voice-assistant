@@ -43,10 +43,15 @@ class AudioPlaybackManager {
     }
 
     suspend fun playAudio(data: ByteArray) {
-        if (!isPlaying || audioTrack == null) return
+        val track = audioTrack ?: return
+        if (!isPlaying) return
 
         withContext(Dispatchers.IO) {
-            audioTrack?.write(data, 0, data.size)
+            try {
+                track.write(data, 0, data.size)
+            } catch (e: IllegalStateException) {
+                // Track was released
+            }
         }
     }
 
