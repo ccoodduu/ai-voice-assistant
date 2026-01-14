@@ -172,45 +172,37 @@ class PhoneAudioBridge:
 
     async def _receive_from_gemini(self):
         """Receive responses from Gemini and forward to phone."""
-        while self._running:
-            logger.info(f"Session {self.session_id}: Connecting to Gemini...")
-            try:
-                async for event in self.gemini.connect():
-                    if not self._running:
-                        return
-
-                    if event["type"] == "connected":
-                        logger.info(f"Session {self.session_id}: Connected to Gemini")
-
-                    elif event["type"] == "audio":
-                        await self.websocket.send(event["data"])
-
-                    elif event["type"] == "turn_complete":
-                        logger.info(f"Session {self.session_id}: Gemini turn complete, reconnecting...")
-
-                    elif event["type"] == "text":
-                        await self._send_json({
-                            "type": "transcript",
-                            "text": event["data"],
-                            "is_final": True,
-                        })
-
-                    elif event["type"] == "tool_calls":
-                        for call in event["data"]:
-                            await self._send_json({
-                                "type": "tool_call",
-                                "name": call["name"],
-                                "status": "success" if call["success"] else "error",
-                            })
-
-                logger.info(f"Session {self.session_id}: Gemini session ended, reconnecting...")
-            except Exception as e:
+        logger.info(f"Session {self.session_id}: Connecting to Gemini...")
+        try:
+            async for event in self.gemini.connect():
                 if not self._running:
-                    return
-                logger.warning(f"Session {self.session_id}: Gemini error: {e}, reconnecting...")
-                await asyncio.sleep(0.5)
+                    break
 
-        logger.info(f"Session {self.session_id}: _receive_from_gemini ended")
+                if event["type"] == "connected":
+                    logger.info(f"Session {self.session_id}: Connected to Gemini")
+
+                elif event["type"] == "audio":
+                    await self.websocket.send(event["data"])
+
+                elif event["type"] == "turn_complete":
+                    logger.info(f"Session {self.session_id}: Gemini turn complete")
+
+                elif event["type"] == "text":
+                    await self._send_json({
+                        "type": "transcript",
+                        "text": event["data"],
+                        "is_final": True,
+                    })
+
+                elif event["type"] == "tool_calls":
+                    for call in event["data"]:
+                        await self._send_json({
+                            "type": "tool_call",
+                            "name": call["name"],
+                            "status": "success" if call["success"] else "error",
+                        })
+        finally:
+            logger.info(f"Session {self.session_id}: _receive_from_gemini ended")
 
     async def _handle_control_message(self, data: dict):
         """Handle control messages from phone."""

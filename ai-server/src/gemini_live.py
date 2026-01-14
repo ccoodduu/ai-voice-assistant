@@ -74,12 +74,14 @@ class GeminiLiveClient:
             self.session = session
             yield {"type": "connected"}
 
-            async for response in session.receive():
-                event = await self._process_response(response)
-                if event:
-                    yield event
-
-            logger.info("Gemini session.receive() ended")
+            # SDK's receive() stops after turn_complete, so we loop to continue
+            while True:
+                async for response in session.receive():
+                    event = await self._process_response(response)
+                    if event:
+                        yield event
+                # After turn completes, loop back to receive next turn
+                logger.debug("Turn complete, waiting for next input...")
 
     async def _process_response(self, response) -> dict | None:
         """Process a response from the Live API."""
