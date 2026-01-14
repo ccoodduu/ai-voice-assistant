@@ -62,6 +62,9 @@ class GeminiLiveClient:
 
     async def connect(self) -> AsyncGenerator[dict, None]:
         """Connect to Gemini Live API and yield events."""
+        import logging
+        logger = logging.getLogger(__name__)
+
         config = self._build_config()
 
         async with self.client.aio.live.connect(
@@ -75,6 +78,8 @@ class GeminiLiveClient:
                 event = await self._process_response(response)
                 if event:
                     yield event
+
+            logger.info("Gemini session.receive() ended")
 
     async def _process_response(self, response) -> dict | None:
         """Process a response from the Live API."""
