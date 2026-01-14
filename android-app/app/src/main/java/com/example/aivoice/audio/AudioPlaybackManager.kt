@@ -3,15 +3,14 @@ package com.example.aivoice.audio
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class AudioPlaybackManager {
 
     private var audioTrack: AudioTrack? = null
     private val audioQueue = ConcurrentLinkedQueue<ByteArray>()
-    private var isPlaying = false
+    @Volatile private var isPlaying = false
+    private val lock = Any()
 
     private val bufferSize = AudioTrack.getMinBufferSize(
         AudioConfig.OUTPUT_SAMPLE_RATE,
@@ -20,37 +19,39 @@ class AudioPlaybackManager {
     ).coerceAtLeast(AudioConfig.OUTPUT_CHUNK_SIZE * 4)
 
     fun initialize() {
-        audioTrack = AudioTrack.Builder()
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANT)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build()
-            )
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setSampleRate(AudioConfig.OUTPUT_SAMPLE_RATE)
-                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .build()
-            )
-            .setBufferSizeInBytes(bufferSize)
-            .setTransferMode(AudioTrack.MODE_STREAM)
-            .build()
+        synchronized(lock) {
+            audioTrack = AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setSampleRate(AudioConfig.OUTPUT_SAMPLE_RATE)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .build()
+                )
+                .setBufferSizeInBytes(bufferSize)
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .build()
 
-        audioTrack?.play()
-        isPlaying = true
+            audioTrack?.play()
+            isPlaying = true
+        }
     }
 
-    suspend fun playAudio(data: ByteArray) {
-        val track = audioTrack ?: return
+    fun playAudio(data: ByteArray) {
         if (!isPlaying) return
-
-        withContext(Dispatchers.IO) {
+        synchronized(lock) {
+            val track = audioTrack ?: return
+            if (!isPlaying) return
             try {
                 track.write(data, 0, data.size)
-            } catch (e: IllegalStateException) {
-                // Track was released
+            } catch (e: Exception) {
+                // Track was released or other error
             }
         }
     }
@@ -61,14 +62,22 @@ class AudioPlaybackManager {
 
     fun clearQueue() {
         audioQueue.clear()
-        audioTrack?.flush()
+        synchronized(lock) {
+            audioTrack?.flush()
+        }
     }
 
     fun release() {
-        isPlaying = false
-        audioTrack?.stop()
-        audioTrack?.release()
-        audioTrack = null
+        synchronized(lock) {
+            isPlaying = false
+            try {
+                audioTrack?.stop()
+                audioTrack?.release()
+            } catch (e: Exception) {
+                // Ignore
+            }
+            audioTrack = null
+        }
         audioQueue.clear()
     }
 }

@@ -57,9 +57,7 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                         audioPlaybackManager.initialize()
                     }
                     is WebSocketEvent.AudioReceived -> {
-                        viewModelScope.launch {
-                            audioPlaybackManager.playAudio(event.data)
-                        }
+                        audioPlaybackManager.playAudio(event.data)
                     }
                     is WebSocketEvent.TranscriptReceived -> {
                         _uiState.update { it.copy(transcript = event.text) }
