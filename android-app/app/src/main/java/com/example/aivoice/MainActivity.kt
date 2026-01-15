@@ -1,8 +1,11 @@
 package com.example.aivoice
 
 import android.Manifest
+import android.app.KeyguardManager
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -31,6 +34,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val keyguardManager = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+        val isDeviceLocked = keyguardManager.isDeviceLocked
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
+
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         enableEdgeToEdge()
 
         checkAudioPermission()
@@ -41,7 +54,12 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    VoiceAssistantScreen(viewModel = viewModel)
+                    VoiceAssistantScreen(
+                        viewModel = viewModel,
+                        isHalfScreen = false,
+                        isDeviceLocked = isDeviceLocked,
+                        onDismiss = { finish() }
+                    )
                 }
             }
         }

@@ -1,4 +1,4 @@
-package com.example.aivoice.ui
+package com.example.aivoice.overlay
 
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -8,7 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,134 +20,25 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.example.aivoice.network.ConnectionState
 import com.example.aivoice.viewmodel.ChatMessage
-import com.example.aivoice.viewmodel.VoiceAssistantViewModel
 
 private val AccentColor = Color(0xFF1A73E8)
 
 @Composable
-fun VoiceAssistantScreen(
-    viewModel: VoiceAssistantViewModel,
-    isHalfScreen: Boolean = false,
-    isDeviceLocked: Boolean = false,
-    onDismiss: () -> Unit = {}
-) {
-    val uiState by viewModel.uiState.collectAsState()
-    var showSettings by remember { mutableStateOf(false) }
-    val needsInitialSetup = uiState.serverUrl.isBlank()
-    val isConnected = uiState.connectionState == ConnectionState.CONNECTED
-
-    FullScreenLayout(
-        uiState = uiState,
-        viewModel = viewModel,
-        showSettings = showSettings,
-        needsInitialSetup = needsInitialSetup,
-        isConnected = isConnected,
-        onSettingsToggle = { showSettings = !showSettings },
-        onSettingsClose = { showSettings = false }
-    )
-}
-
-@Composable
-private fun FullScreenLayout(
-    uiState: com.example.aivoice.viewmodel.UiState,
-    viewModel: VoiceAssistantViewModel,
-    showSettings: Boolean,
-    needsInitialSetup: Boolean,
-    isConnected: Boolean,
-    onSettingsToggle: () -> Unit,
-    onSettingsClose: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = Color.White
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            if (needsInitialSetup || showSettings) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = uiState.serverUrl,
-                        onValueChange = viewModel::updateServerUrl,
-                        label = { Text("Server URL") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                    if (!needsInitialSetup) {
-                        IconButton(onClick = onSettingsClose) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Close settings"
-                            )
-                        }
-                    }
-                }
-            }
-
-            ChatMessageList(
-                messages = uiState.chatMessages,
-                pendingUserText = uiState.pendingUserText,
-                pendingAssistantText = uiState.pendingAssistantText,
-                isListening = uiState.isListening,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            )
-
-            uiState.errorMessage?.let { error ->
-                Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
-
-            BottomBar(
-                isConnected = isConnected,
-                isListening = uiState.isListening,
-                onMicClick = {
-                    if (isConnected) {
-                        viewModel.disconnect()
-                    } else {
-                        onSettingsClose()
-                        viewModel.connect()
-                    }
-                },
-                onSettingsClick = onSettingsToggle,
-                showSettingsButton = !needsInitialSetup && !showSettings
-            )
-        }
-    }
-}
-
-@Composable
-private fun ChatMessageList(
+fun OverlayChatMessageList(
     messages: List<ChatMessage>,
     pendingUserText: String,
     pendingAssistantText: String,
@@ -190,16 +80,16 @@ private fun ChatMessageList(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)
             ) {
                 items(messages, key = { it.timestamp }) { message ->
-                    ChatBubble(text = message.text, isFromUser = message.isFromUser)
+                    OverlayChatBubble(text = message.text, isFromUser = message.isFromUser)
                 }
                 if (pendingUserText.isNotEmpty()) {
                     item(key = "pending_user") {
-                        ChatBubble(text = pendingUserText, isFromUser = true, isStreaming = true)
+                        OverlayChatBubble(text = pendingUserText, isFromUser = true, isStreaming = true)
                     }
                 }
                 if (pendingAssistantText.isNotEmpty()) {
                     item(key = "pending_assistant") {
-                        ChatBubble(text = pendingAssistantText, isFromUser = false, isStreaming = true)
+                        OverlayChatBubble(text = pendingAssistantText, isFromUser = false, isStreaming = true)
                     }
                 }
             }
@@ -208,7 +98,7 @@ private fun ChatMessageList(
 }
 
 @Composable
-private fun ChatBubble(
+private fun OverlayChatBubble(
     text: String,
     isFromUser: Boolean,
     isStreaming: Boolean = false
@@ -236,12 +126,10 @@ private fun ChatBubble(
 }
 
 @Composable
-private fun BottomBar(
+fun OverlayBottomBar(
     isConnected: Boolean,
     isListening: Boolean,
-    onMicClick: () -> Unit,
-    onSettingsClick: () -> Unit,
-    showSettingsButton: Boolean
+    onMicClick: () -> Unit
 ) {
     val micScale by rememberInfiniteTransition(label = "mic").animateFloat(
         initialValue = 1f,
@@ -259,19 +147,6 @@ private fun BottomBar(
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
-        if (showSettingsButton) {
-            IconButton(
-                onClick = onSettingsClick,
-                modifier = Modifier.align(Alignment.CenterStart)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    tint = Color.Gray
-                )
-            }
-        }
-
         IconButton(
             onClick = onMicClick,
             modifier = Modifier

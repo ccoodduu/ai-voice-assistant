@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.appcompat:appcompat:1.7.0")
     implementation(libs.okhttp)
     debugImplementation(libs.androidx.ui.tooling)
 }
