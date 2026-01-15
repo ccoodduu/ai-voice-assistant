@@ -47,9 +47,6 @@ class GeminiLiveClient:
             system_instruction=types.Content(
                 parts=[types.Part(text=self.system_instruction)]
             ),
-            speech_config=types.SpeechConfig(
-                language_code="da-DK",
-            ),
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
         )
