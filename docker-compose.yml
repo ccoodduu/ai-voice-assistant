@@ -12,6 +12,7 @@ services:
     network_mode: host
     volumes:
       - ./phone-tasker-mcp/tasker_mcp:/app/tasker_mcp:ro
+    command: ["python", "-m", "tasker_mcp.server", "--transport", "sse", "--port", "8100"]
 
   ai-server:
     build:
