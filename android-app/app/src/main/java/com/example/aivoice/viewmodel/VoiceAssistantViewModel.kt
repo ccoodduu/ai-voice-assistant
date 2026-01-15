@@ -114,8 +114,7 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                         finalizeUserMessage()
                         val trimmed = event.text.trim()
                         if (trimmed.isNotEmpty()) {
-                            val newText = if (pendingAssistantText.isEmpty()) trimmed
-                                else "$pendingAssistantText $trimmed"
+                            val newText = smartJoin(pendingAssistantText.toString(), trimmed)
                             pendingAssistantText.clear()
                             pendingAssistantText.append(newText)
                             _uiState.update { it.copy(pendingAssistantText = newText) }
@@ -128,8 +127,7 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                         finalizeUserMessage()
                         val trimmed = event.text.trim()
                         if (trimmed.isNotEmpty()) {
-                            val newText = if (pendingAssistantText.isEmpty()) trimmed
-                                else "$pendingAssistantText $trimmed"
+                            val newText = smartJoin(pendingAssistantText.toString(), trimmed)
                             pendingAssistantText.clear()
                             pendingAssistantText.append(newText)
                             _uiState.update { it.copy(pendingAssistantText = newText) }
@@ -185,6 +183,13 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                 )
             }
         }
+    }
+
+    private fun smartJoin(existing: String, newChunk: String): String {
+        if (existing.isEmpty()) return newChunk
+        if (newChunk.isEmpty()) return existing
+        val needsSpace = !newChunk.first().let { it in ",.!?;:'\")" } && existing.last() !in "('\""
+        return if (needsSpace) "$existing $newChunk" else "$existing$newChunk"
     }
 
     private fun observeConnectionState() {
