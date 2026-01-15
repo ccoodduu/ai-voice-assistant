@@ -4,6 +4,7 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.Executors
 
 class AudioPlaybackManager {
 
@@ -11,6 +12,7 @@ class AudioPlaybackManager {
     private val audioQueue = ConcurrentLinkedQueue<ByteArray>()
     @Volatile private var isPlaying = false
     private val lock = Any()
+    private val executor = Executors.newSingleThreadExecutor()
 
     private val bufferSize = AudioTrack.getMinBufferSize(
         AudioConfig.OUTPUT_SAMPLE_RATE,
@@ -45,13 +47,15 @@ class AudioPlaybackManager {
 
     fun playAudio(data: ByteArray) {
         if (!isPlaying) return
-        synchronized(lock) {
-            val track = audioTrack ?: return
-            if (!isPlaying) return
-            try {
-                track.write(data, 0, data.size)
-            } catch (e: Exception) {
-                // Track was released or other error
+        executor.execute {
+            synchronized(lock) {
+                val track = audioTrack ?: return@execute
+                if (!isPlaying) return@execute
+                try {
+                    track.write(data, 0, data.size)
+                } catch (e: Exception) {
+                    // Track was released or other error
+                }
             }
         }
     }
