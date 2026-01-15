@@ -91,7 +91,7 @@ private fun FullScreenLayout(
         modifier = Modifier.fillMaxSize(),
         color = Color.White
     ) {
-        Column(modifier = Modifier.fillMaxSize().imePadding()) {
+        Column(modifier = Modifier.fillMaxSize()) {
             if (needsInitialSetup || showSettings) {
                 Row(
                     modifier = Modifier
