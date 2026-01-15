@@ -1,6 +1,7 @@
 package com.example.aivoice.viewmodel
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aivoice.audio.AudioCaptureManager
@@ -24,7 +25,7 @@ import kotlinx.coroutines.launch
 data class UiState(
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
     val isListening: Boolean = false,
-    val serverUrl: String = "ws://100.123.253.113:8765",
+    val serverUrl: String = "",
     val transcript: String = "",
     val lastToolCall: String = "",
     val errorMessage: String? = null
@@ -40,10 +41,19 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    private val prefs = application.getSharedPreferences("voice_assistant_prefs", Context.MODE_PRIVATE)
+
     init {
+        val savedUrl = prefs.getString("server_url", "") ?: ""
+        _uiState.update { it.copy(serverUrl = savedUrl) }
+
         observeWebSocketEvents()
         observeConnectionState()
         observeAndCaptureAudio()
+
+        if (savedUrl.isNotBlank()) {
+            connect()
+        }
     }
 
     private fun observeWebSocketEvents() {
@@ -110,7 +120,10 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
 
     fun connect() {
         val url = _uiState.value.serverUrl
-        webSocketManager.connect(url)
+        if (url.isNotBlank()) {
+            prefs.edit().putString("server_url", url).apply()
+            webSocketManager.connect(url)
+        }
     }
 
     fun disconnect() {
