@@ -22,6 +22,18 @@ class AudioPlaybackManager {
 
     fun initialize() {
         synchronized(lock) {
+            // Release existing track if any
+            if (isPlaying) {
+                try {
+                    audioTrack?.stop()
+                    audioTrack?.release()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+                audioTrack = null
+                isPlaying = false
+            }
+
             audioTrack = AudioTrack.Builder()
                 .setAudioAttributes(
                     AudioAttributes.Builder()

@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import io.github.ccoodduu.aivoice.overlay.OverlayService
 import io.github.ccoodduu.aivoice.ui.VoiceAssistantScreen
 import io.github.ccoodduu.aivoice.ui.theme.AIVoiceAssistantTheme
 import io.github.ccoodduu.aivoice.viewmodel.VoiceAssistantViewModel
@@ -23,6 +24,7 @@ import io.github.ccoodduu.aivoice.viewmodel.VoiceAssistantViewModel
 class MainActivity : ComponentActivity() {
 
     private val viewModel: VoiceAssistantViewModel by viewModels()
+    private val app by lazy { application as AIVoiceApplication }
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -34,6 +36,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Stop overlay if running - only one view at a time
+        OverlayService.stop(this)
 
         val keyguardManager = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
         val isDeviceLocked = keyguardManager.isDeviceLocked
@@ -63,6 +68,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        app.setCurrentActivity(this)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        app.setCurrentActivity(null)
     }
 
     private fun checkAudioPermission() {

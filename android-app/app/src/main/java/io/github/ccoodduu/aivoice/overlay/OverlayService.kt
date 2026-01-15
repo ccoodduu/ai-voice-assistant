@@ -88,6 +88,12 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
             windowManager?.removeView(it)
         }
         overlayView = null
+
+        // If no MainActivity is open, disconnect everything
+        val app = application as? io.github.ccoodduu.aivoice.AIVoiceApplication
+        if (app != null && !app.hasActiveActivity()) {
+            app.webSocketManager.disconnect()
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

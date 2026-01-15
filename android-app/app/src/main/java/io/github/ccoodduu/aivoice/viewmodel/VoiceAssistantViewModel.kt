@@ -5,23 +5,13 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.ccoodduu.aivoice.audio.AudioCaptureManager
-import io.github.ccoodduu.aivoice.audio.AudioPlaybackManager
+import io.github.ccoodduu.aivoice.AIVoiceApplication
 import io.github.ccoodduu.aivoice.network.ConnectionState
 import io.github.ccoodduu.aivoice.network.InputMode
 import io.github.ccoodduu.aivoice.network.WebSocketEvent
-import io.github.ccoodduu.aivoice.network.WebSocketManager
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -47,12 +37,10 @@ data class UiState(
     val textInput: String = ""
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class VoiceAssistantViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val webSocketManager = WebSocketManager()
-    private val audioCaptureManager = AudioCaptureManager()
-    private val audioPlaybackManager = AudioPlaybackManager()
+    private val app = application as AIVoiceApplication
+    private val webSocketManager = app.webSocketManager
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -68,7 +56,7 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
 
         observeWebSocketEvents()
         observeConnectionState()
-        observeAndCaptureAudio()
+        observeInputMode()
 
         if (savedUrl.isNotBlank()) {
             connect()
@@ -82,12 +70,8 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                     is WebSocketEvent.Connected -> {
                         _uiState.update { it.copy(errorMessage = null) }
                     }
-                    is WebSocketEvent.SessionReady -> {
-                        audioPlaybackManager.initialize()
-                    }
-                    is WebSocketEvent.AudioReceived -> {
-                        audioPlaybackManager.playAudio(event.data)
-                    }
+                    is WebSocketEvent.SessionReady -> { }
+                    is WebSocketEvent.AudioReceived -> { }
                     is WebSocketEvent.TranscriptReceived -> {
                         _uiState.update { it.copy(transcript = event.text) }
                     }
@@ -97,7 +81,6 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                         }
                     }
                     is WebSocketEvent.UserTranscriptReceived -> {
-                        // Skip in text mode - message already added locally when sent
                         if (_uiState.value.inputMode == InputMode.AUDIO) {
                             finalizeAssistantMessage()
                             if (event.text.isNotEmpty()) {
@@ -132,6 +115,7 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                     is WebSocketEvent.ModeChanged -> {
                         val mode = if (event.mode == "text") InputMode.TEXT else InputMode.AUDIO
                         _uiState.update { it.copy(inputMode = mode) }
+                        app.setInputMode(mode)
                     }
                     is WebSocketEvent.Error -> {
                         _uiState.update {
@@ -139,7 +123,6 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                         }
                     }
                     is WebSocketEvent.Disconnected -> {
-                        audioPlaybackManager.release()
                         pendingUserText.clear()
                         pendingAssistantText.clear()
                         _uiState.update {
@@ -193,24 +176,21 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-    private fun observeAndCaptureAudio() {
-        combine(
-            uiState.map { it.connectionState }.distinctUntilChanged(),
-            uiState.map { it.inputMode }.distinctUntilChanged()
-        ) { connectionState, inputMode ->
-            Pair(connectionState, inputMode)
-        }.flatMapLatest { (connectionState, inputMode) ->
-            val shouldCapture = connectionState == ConnectionState.CONNECTED && inputMode == InputMode.AUDIO
-            if (shouldCapture) {
-                _uiState.update { it.copy(isListening = true) }
-                audioCaptureManager.startCapture()
-            } else {
-                _uiState.update { it.copy(isListening = false) }
-                flow { }
+    private fun observeInputMode() {
+        viewModelScope.launch {
+            app.connectionState.collect { state ->
+                val isListening = state == ConnectionState.CONNECTED &&
+                                  app.inputMode.value == InputMode.AUDIO
+                _uiState.update { it.copy(isListening = isListening) }
             }
-        }.onEach { audioData ->
-            webSocketManager.sendAudio(audioData)
-        }.launchIn(viewModelScope)
+        }
+        viewModelScope.launch {
+            app.inputMode.collect { mode ->
+                val isListening = app.connectionState.value == ConnectionState.CONNECTED &&
+                                  mode == InputMode.AUDIO
+                _uiState.update { it.copy(isListening = isListening, inputMode = mode) }
+            }
+        }
     }
 
     fun updateServerUrl(url: String) {
@@ -251,12 +231,8 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
         val newMode = if (currentMode == InputMode.AUDIO) InputMode.TEXT else InputMode.AUDIO
         Log.d("VoiceAssistant", "toggleInputMode: $currentMode -> $newMode")
         _uiState.update { it.copy(inputMode = newMode) }
-        Log.d("VoiceAssistant", "State updated, new inputMode: ${_uiState.value.inputMode}")
+        app.setInputMode(newMode)
         webSocketManager.setMode(newMode)
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        disconnect()
-    }
 }

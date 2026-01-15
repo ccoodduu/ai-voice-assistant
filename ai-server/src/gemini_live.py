@@ -152,10 +152,12 @@ class GeminiLiveClient:
 
     async def _handle_tool_call(self, tool_call) -> dict:
         """Handle function call from Gemini."""
+        logger.info(f"Tool call received: {tool_call}")
         results = []
         function_responses = []
 
         for fc in tool_call.function_calls:
+            logger.info(f"Calling tool: {fc.name} with args: {fc.args}")
             name = fc.name
             call_id = fc.id
             args = dict(fc.args) if fc.args else {}

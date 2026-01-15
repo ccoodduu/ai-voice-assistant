@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.ccoodduu.aivoice.AIVoiceApplication
 import io.github.ccoodduu.aivoice.network.ConnectionState
 import io.github.ccoodduu.aivoice.ui.theme.AIVoiceAssistantTheme
 import io.github.ccoodduu.aivoice.viewmodel.VoiceAssistantViewModel
@@ -46,6 +47,13 @@ class OverlayLauncherActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // If MainActivity is open, don't show overlay - just exit
+        val app = AIVoiceApplication.getInstance()
+        if (app.hasActiveActivity()) {
+            finish()
+            return
+        }
 
         val keyguardManager = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
         val isLocked = keyguardManager.isKeyguardLocked
