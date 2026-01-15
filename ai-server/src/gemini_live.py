@@ -50,6 +50,8 @@ class GeminiLiveClient:
             speech_config=types.SpeechConfig(
                 language_code="da-DK",
             ),
+            input_audio_transcription=types.AudioTranscriptionConfig(),
+            output_audio_transcription=types.AudioTranscriptionConfig(),
         )
 
         if self.tools:
@@ -101,6 +103,18 @@ class GeminiLiveClient:
                             "data": part.inline_data.data,
                             "mime_type": part.inline_data.mime_type,
                         }
+
+            if content.output_transcription:
+                return {
+                    "type": "output_transcription",
+                    "text": content.output_transcription.text,
+                }
+
+            if content.input_transcription:
+                return {
+                    "type": "input_transcription",
+                    "text": content.input_transcription.text,
+                }
 
             if content.turn_complete:
                 return {"type": "turn_complete"}

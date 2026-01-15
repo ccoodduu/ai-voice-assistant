@@ -22,13 +22,20 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+data class ChatMessage(
+    val text: String,
+    val isFromUser: Boolean,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
 data class UiState(
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
     val isListening: Boolean = false,
     val serverUrl: String = "",
     val transcript: String = "",
     val lastToolCall: String = "",
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val chatMessages: List<ChatMessage> = emptyList()
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -77,6 +84,16 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                             it.copy(lastToolCall = "${event.name}: ${event.status}")
                         }
                     }
+                    is WebSocketEvent.UserTranscriptReceived -> {
+                        _uiState.update {
+                            it.copy(chatMessages = it.chatMessages + ChatMessage(event.text, isFromUser = true))
+                        }
+                    }
+                    is WebSocketEvent.AssistantTranscriptReceived -> {
+                        _uiState.update {
+                            it.copy(chatMessages = it.chatMessages + ChatMessage(event.text, isFromUser = false))
+                        }
+                    }
                     is WebSocketEvent.Error -> {
                         _uiState.update {
                             it.copy(errorMessage = "${event.code}: ${event.message}")
@@ -84,6 +101,7 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                     }
                     is WebSocketEvent.Disconnected -> {
                         audioPlaybackManager.release()
+                        _uiState.update { it.copy(chatMessages = emptyList()) }
                     }
                 }
             }

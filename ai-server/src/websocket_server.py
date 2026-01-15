@@ -194,6 +194,18 @@ class PhoneAudioBridge:
                         "is_final": True,
                     })
 
+                elif event["type"] == "input_transcription":
+                    await self._send_json({
+                        "type": "user_transcript",
+                        "text": event["text"],
+                    })
+
+                elif event["type"] == "output_transcription":
+                    await self._send_json({
+                        "type": "assistant_transcript",
+                        "text": event["text"],
+                    })
+
                 elif event["type"] == "tool_calls":
                     for call in event["data"]:
                         await self._send_json({
