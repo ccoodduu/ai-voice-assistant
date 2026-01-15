@@ -100,23 +100,21 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                         // Skip in text mode - message already added locally when sent
                         if (_uiState.value.inputMode == InputMode.AUDIO) {
                             finalizeAssistantMessage()
-                            val trimmed = event.text.trim()
-                            if (trimmed.isNotEmpty()) {
-                                val newText = smartJoin(pendingUserText.toString(), trimmed)
+                            if (event.text.isNotEmpty()) {
+                                val newText = smartJoin(pendingUserText.toString(), event.text)
                                 pendingUserText.clear()
                                 pendingUserText.append(newText)
-                                _uiState.update { it.copy(pendingUserText = newText) }
+                                _uiState.update { it.copy(pendingUserText = newText.trim()) }
                             }
                         }
                     }
                     is WebSocketEvent.AssistantTranscriptReceived -> {
                         finalizeUserMessage()
-                        val trimmed = event.text.trim()
-                        if (trimmed.isNotEmpty()) {
-                            val newText = smartJoin(pendingAssistantText.toString(), trimmed)
+                        if (event.text.isNotEmpty()) {
+                            val newText = smartJoin(pendingAssistantText.toString(), event.text)
                             pendingAssistantText.clear()
                             pendingAssistantText.append(newText)
-                            _uiState.update { it.copy(pendingAssistantText = newText) }
+                            _uiState.update { it.copy(pendingAssistantText = newText.trim()) }
                         }
                     }
                     is WebSocketEvent.TurnComplete -> {
@@ -124,12 +122,11 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                     }
                     is WebSocketEvent.AssistantTextReceived -> {
                         finalizeUserMessage()
-                        val trimmed = event.text.trim()
-                        if (trimmed.isNotEmpty()) {
-                            val newText = smartJoin(pendingAssistantText.toString(), trimmed)
+                        if (event.text.isNotEmpty()) {
+                            val newText = smartJoin(pendingAssistantText.toString(), event.text)
                             pendingAssistantText.clear()
                             pendingAssistantText.append(newText)
-                            _uiState.update { it.copy(pendingAssistantText = newText) }
+                            _uiState.update { it.copy(pendingAssistantText = newText.trim()) }
                         }
                     }
                     is WebSocketEvent.ModeChanged -> {
@@ -185,10 +182,7 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
     }
 
     private fun smartJoin(existing: String, newChunk: String): String {
-        if (existing.isEmpty()) return newChunk
-        if (newChunk.isEmpty()) return existing
-        val needsSpace = !newChunk.first().let { it in ",.!?;:'\")" } && existing.last() !in "('\""
-        return if (needsSpace) "$existing $newChunk" else "$existing$newChunk"
+        return "$existing$newChunk"
     }
 
     private fun observeConnectionState() {
