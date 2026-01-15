@@ -241,6 +241,8 @@ class PhoneAudioBridge:
                             "name": call["name"],
                             "status": "success" if call["success"] else "error",
                         })
+        except Exception as e:
+            logger.error(f"Session {self.session_id}: Gemini error - {e}")
         finally:
             logger.info(f"Session {self.session_id}: _receive_from_gemini ended")
 

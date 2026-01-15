@@ -127,7 +127,7 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                         if (text.isNotEmpty()) {
                             _uiState.update {
                                 it.copy(
-                                    chatMessages = it.chatMessages + ChatMessage(text, isFromUser = false)
+                                    chatMessages = it.chatMessages + ChatMessage(text = text, isFromUser = false)
                                 )
                             }
                         }
@@ -164,7 +164,7 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
             pendingUserText.clear()
             _uiState.update {
                 it.copy(
-                    chatMessages = it.chatMessages + ChatMessage(text, isFromUser = true),
+                    chatMessages = it.chatMessages + ChatMessage(text = text, isFromUser = true),
                     pendingUserText = ""
                 )
             }
@@ -177,7 +177,7 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
             pendingAssistantText.clear()
             _uiState.update {
                 it.copy(
-                    chatMessages = it.chatMessages + ChatMessage(text, isFromUser = false),
+                    chatMessages = it.chatMessages + ChatMessage(text = text, isFromUser = false),
                     pendingAssistantText = ""
                 )
             }
@@ -237,7 +237,7 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
         if (text.isNotEmpty()) {
             _uiState.update {
                 it.copy(
-                    chatMessages = it.chatMessages + ChatMessage(text, isFromUser = true),
+                    chatMessages = it.chatMessages + ChatMessage(text = text, isFromUser = true),
                     textInput = ""
                 )
             }
