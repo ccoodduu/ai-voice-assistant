@@ -52,8 +52,11 @@ class GeminiLiveClient:
                 parts=[types.Part(text=self.system_instruction)]
             ),
             input_audio_transcription=types.AudioTranscriptionConfig(),
-            output_audio_transcription=types.AudioTranscriptionConfig(),
         )
+
+        # Only add output transcription in audio mode
+        if self.response_mode == "audio":
+            config.output_audio_transcription = types.AudioTranscriptionConfig()
 
         if self.tools:
             config.tools = [

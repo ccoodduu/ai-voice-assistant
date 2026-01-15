@@ -200,7 +200,7 @@ private fun ChatMessageList(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)
             ) {
-                items(messages, key = { it.timestamp }) { message ->
+                items(messages, key = { it.id }) { message ->
                     ChatBubble(text = message.text, isFromUser = message.isFromUser)
                 }
                 if (pendingUserText.isNotEmpty()) {
