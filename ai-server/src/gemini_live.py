@@ -111,10 +111,10 @@ class GeminiLiveClient:
                             logger.debug(f"Skipping thought: {part.text[:50]}...")
                             continue
                         text = part.text.strip()
-                        # Filter out thinking patterns
+                        # Filter out thinking patterns (markdown headers are usually thinking)
                         if (text.startswith('<think>') or
                             text.startswith('<thinking>') or
-                            text.startswith('**') and any(kw in text.lower() for kw in ['analyzing', 'thinking', 'processing', 'considering', 'evaluating'])):
+                            text.startswith('**')):
                             logger.debug(f"Skipping thinking: {text[:50]}...")
                             continue
                         # Skip if it looks like internal reasoning
