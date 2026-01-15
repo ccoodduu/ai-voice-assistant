@@ -3,11 +3,14 @@
 import asyncio
 import base64
 import json
+import logging
 import os
 from typing import Any, AsyncGenerator, Callable
 
 from google import genai
 from google.genai import types
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiLiveClient:
@@ -77,9 +80,6 @@ class GeminiLiveClient:
 
     async def connect(self) -> AsyncGenerator[dict, None]:
         """Connect to Gemini Live API and yield events."""
-        import logging
-        logger = logging.getLogger(__name__)
-
         config = self._build_config()
 
         async with self.client.aio.live.connect(
