@@ -106,14 +106,20 @@ class GeminiLiveClient:
             if content.model_turn:
                 for part in content.model_turn.parts:
                     if part.text:
-                        # Skip thinking/reasoning output (has thought attribute or wrapped in tags)
+                        # Skip thinking/reasoning output (has thought attribute)
                         if hasattr(part, 'thought') and part.thought:
                             logger.debug(f"Skipping thought: {part.text[:50]}...")
                             continue
-                        text = part.text
-                        # Filter out text wrapped in thinking tags
-                        if text.strip().startswith('<think>') or text.strip().startswith('<thinking>'):
-                            logger.debug(f"Skipping thinking tags: {text[:50]}...")
+                        text = part.text.strip()
+                        # Filter out thinking patterns
+                        if (text.startswith('<think>') or
+                            text.startswith('<thinking>') or
+                            text.startswith('**') and any(kw in text.lower() for kw in ['analyzing', 'thinking', 'processing', 'considering', 'evaluating'])):
+                            logger.debug(f"Skipping thinking: {text[:50]}...")
+                            continue
+                        # Skip if it looks like internal reasoning
+                        if "I've hit a snag" in text or "I'm leaning toward" in text or "Clarification is needed" in text:
+                            logger.debug(f"Skipping reasoning: {text[:50]}...")
                             continue
                         logger.debug(f"Text response: {text[:50]}...")
                         return {"type": "text", "data": text}
