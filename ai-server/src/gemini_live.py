@@ -15,13 +15,19 @@ class GeminiLiveClient:
 
     def __init__(
         self,
-        model: str = "gemini-2.5-flash-native-audio-preview-12-2025",
+        model: str | None = None,
         system_instruction: str | None = None,
         response_mode: str = "audio",
     ):
         self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-        self.model = model
         self.response_mode = response_mode
+        # Use native audio model for audio mode, standard model for text mode
+        if model:
+            self.model = model
+        elif response_mode == "audio":
+            self.model = "gemini-2.5-flash-native-audio-preview-12-2025"
+        else:
+            self.model = "gemini-2.0-flash-exp"
         self.system_instruction = system_instruction or (
             "You are a helpful voice assistant that can control a phone via Tasker. "
             "When the user asks you to do something with their phone (like turning on "
