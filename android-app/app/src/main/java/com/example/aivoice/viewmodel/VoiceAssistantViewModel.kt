@@ -50,6 +50,9 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
 
     private val prefs = application.getSharedPreferences("voice_assistant_prefs", Context.MODE_PRIVATE)
 
+    private var pendingUserText = StringBuilder()
+    private var pendingAssistantText = StringBuilder()
+
     init {
         val savedUrl = prefs.getString("server_url", "") ?: ""
         _uiState.update { it.copy(serverUrl = savedUrl) }
@@ -85,14 +88,21 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                         }
                     }
                     is WebSocketEvent.UserTranscriptReceived -> {
-                        _uiState.update {
-                            it.copy(chatMessages = it.chatMessages + ChatMessage(event.text, isFromUser = true))
+                        finalizeAssistantMessage()
+                        if (pendingUserText.isNotEmpty()) {
+                            pendingUserText.append(" ")
                         }
+                        pendingUserText.append(event.text)
                     }
                     is WebSocketEvent.AssistantTranscriptReceived -> {
-                        _uiState.update {
-                            it.copy(chatMessages = it.chatMessages + ChatMessage(event.text, isFromUser = false))
+                        finalizeUserMessage()
+                        if (pendingAssistantText.isNotEmpty()) {
+                            pendingAssistantText.append(" ")
                         }
+                        pendingAssistantText.append(event.text)
+                    }
+                    is WebSocketEvent.TurnComplete -> {
+                        finalizeAssistantMessage()
                     }
                     is WebSocketEvent.Error -> {
                         _uiState.update {
@@ -101,9 +111,31 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                     }
                     is WebSocketEvent.Disconnected -> {
                         audioPlaybackManager.release()
+                        pendingUserText.clear()
+                        pendingAssistantText.clear()
                         _uiState.update { it.copy(chatMessages = emptyList()) }
                     }
                 }
+            }
+        }
+    }
+
+    private fun finalizeUserMessage() {
+        if (pendingUserText.isNotEmpty()) {
+            val text = pendingUserText.toString()
+            pendingUserText.clear()
+            _uiState.update {
+                it.copy(chatMessages = it.chatMessages + ChatMessage(text, isFromUser = true))
+            }
+        }
+    }
+
+    private fun finalizeAssistantMessage() {
+        if (pendingAssistantText.isNotEmpty()) {
+            val text = pendingAssistantText.toString()
+            pendingAssistantText.clear()
+            _uiState.update {
+                it.copy(chatMessages = it.chatMessages + ChatMessage(text, isFromUser = false))
             }
         }
     }

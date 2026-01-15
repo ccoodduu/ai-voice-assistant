@@ -186,6 +186,7 @@ class PhoneAudioBridge:
 
                 elif event["type"] == "turn_complete":
                     logger.info(f"Session {self.session_id}: Gemini turn complete")
+                    await self._send_json({"type": "turn_complete"})
 
                 elif event["type"] == "text":
                     await self._send_json({

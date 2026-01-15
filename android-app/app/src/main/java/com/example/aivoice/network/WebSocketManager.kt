@@ -31,6 +31,7 @@ sealed class WebSocketEvent {
     data class TranscriptReceived(val text: String, val isFinal: Boolean) : WebSocketEvent()
     data class UserTranscriptReceived(val text: String) : WebSocketEvent()
     data class AssistantTranscriptReceived(val text: String) : WebSocketEvent()
+    data object TurnComplete : WebSocketEvent()
     data class ToolCallReceived(val name: String, val status: String) : WebSocketEvent()
     data class Error(val code: String, val message: String) : WebSocketEvent()
 }
@@ -123,6 +124,9 @@ class WebSocketManager {
                 }
                 "assistant_transcript" -> {
                     _events.tryEmit(WebSocketEvent.AssistantTranscriptReceived(json.getString("text")))
+                }
+                "turn_complete" -> {
+                    _events.tryEmit(WebSocketEvent.TurnComplete)
                 }
                 "error" -> {
                     _events.tryEmit(
