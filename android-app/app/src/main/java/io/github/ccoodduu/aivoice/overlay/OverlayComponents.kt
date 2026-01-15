@@ -73,7 +73,7 @@ fun OverlayChatMessageList(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (isListening) "Listening..." else "Hi, how can I help?",
+                    text = if (isListening) "Listening..." else "Tap the microphone to start",
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.Gray
                 )
