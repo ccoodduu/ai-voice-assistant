@@ -15,7 +15,7 @@ class GeminiLiveClient:
 
     def __init__(
         self,
-        model: str = "gemini-2.0-flash-exp",
+        model: str = "gemini-2.5-flash-native-audio-preview-12-2025",
         system_instruction: str | None = None,
     ):
         self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
@@ -46,6 +46,9 @@ class GeminiLiveClient:
             response_modalities=["AUDIO"],
             system_instruction=types.Content(
                 parts=[types.Part(text=self.system_instruction)]
+            ),
+            speech_config=types.SpeechConfig(
+                language_code="da-DK",
             ),
         )
 
