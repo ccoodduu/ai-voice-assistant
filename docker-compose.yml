@@ -1,16 +1,4 @@
 services:
-  wakeonlan:
-    image: ghcr.io/andygrundman/tailscale-wakeonlan:latest
-    container_name: wakeonlan
-    restart: unless-stopped
-    environment:
-      - TAILSCALE_HOSTNAME=wakeonlan-pi
-      - TAILSCALE_AUTHKEY=tskey-auth-kTcfxaAKZY11CNTRL-tgJR1BgBVPA44SYWpn7mUAK3QPxbBEMy
-      - WOL_NETWORK=192.168.0.0/24
-    volumes:
-      - wakeonlan-state:/var/lib/tailscale
-    network_mode: host
-
   tasker-mcp:
     build:
       context: ./phone-tasker-mcp
@@ -61,6 +49,3 @@ services:
       - ./gemini-live-mcp/mcp_config.json:/app/mcp_config.json:ro
     profiles:
       - local
-
-volumes:
-  wakeonlan-state:
