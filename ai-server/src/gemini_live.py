@@ -17,9 +17,11 @@ class GeminiLiveClient:
         self,
         model: str = "gemini-2.5-flash-native-audio-preview-12-2025",
         system_instruction: str | None = None,
+        response_mode: str = "audio",
     ):
         self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
         self.model = model
+        self.response_mode = response_mode
         self.system_instruction = system_instruction or (
             "You are a helpful voice assistant that can control a phone via Tasker. "
             "When the user asks you to do something with their phone (like turning on "
@@ -42,8 +44,10 @@ class GeminiLiveClient:
 
     def _build_config(self) -> types.LiveConnectConfig:
         """Build the Live API connection config."""
+        modalities = ["AUDIO"] if self.response_mode == "audio" else ["TEXT"]
+
         config = types.LiveConnectConfig(
-            response_modalities=["AUDIO"],
+            response_modalities=modalities,
             system_instruction=types.Content(
                 parts=[types.Part(text=self.system_instruction)]
             ),

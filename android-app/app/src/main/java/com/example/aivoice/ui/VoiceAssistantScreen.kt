@@ -20,7 +20,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material3.Icon
@@ -41,7 +45,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.ImeAction
 import com.example.aivoice.network.ConnectionState
+import com.example.aivoice.network.InputMode
 import com.example.aivoice.viewmodel.ChatMessage
 import com.example.aivoice.viewmodel.VoiceAssistantViewModel
 
@@ -132,6 +138,10 @@ private fun FullScreenLayout(
             BottomBar(
                 isConnected = isConnected,
                 isListening = uiState.isListening,
+                inputMode = uiState.inputMode,
+                textInput = uiState.textInput,
+                onTextInputChange = { viewModel.updateTextInput(it) },
+                onSendText = { viewModel.sendTextMessage() },
                 onMicClick = {
                     if (isConnected) {
                         viewModel.disconnect()
@@ -140,6 +150,7 @@ private fun FullScreenLayout(
                         viewModel.connect()
                     }
                 },
+                onModeToggle = { viewModel.toggleInputMode() },
                 onSettingsClick = onSettingsToggle,
                 showSettingsButton = !needsInitialSetup && !showSettings
             )
@@ -239,7 +250,12 @@ private fun ChatBubble(
 private fun BottomBar(
     isConnected: Boolean,
     isListening: Boolean,
+    inputMode: InputMode,
+    textInput: String,
+    onTextInputChange: (String) -> Unit,
+    onSendText: () -> Unit,
     onMicClick: () -> Unit,
+    onModeToggle: () -> Unit,
     onSettingsClick: () -> Unit,
     showSettingsButton: Boolean
 ) {
@@ -253,41 +269,106 @@ private fun BottomBar(
         label = "micScale"
     )
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        if (showSettingsButton) {
-            IconButton(
-                onClick = onSettingsClick,
-                modifier = Modifier.align(Alignment.CenterStart)
+        if (inputMode == InputMode.TEXT && isConnected) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    tint = Color.Gray
+                OutlinedTextField(
+                    value = textInput,
+                    onValueChange = onTextInputChange,
+                    placeholder = { Text("Type a message...") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = { onSendText() }),
+                    shape = RoundedCornerShape(24.dp)
                 )
+                IconButton(
+                    onClick = onSendText,
+                    enabled = textInput.isNotBlank(),
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .size(48.dp)
+                        .background(
+                            color = if (textInput.isNotBlank()) AccentColor else Color(0xFFF1F3F4),
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Send",
+                        tint = if (textInput.isNotBlank()) Color.White else Color.Gray
+                    )
+                }
             }
         }
 
-        IconButton(
-            onClick = onMicClick,
-            modifier = Modifier
-                .size(56.dp)
-                .scale(micScale)
-                .background(
-                    color = if (isListening) AccentColor else Color(0xFFF1F3F4),
-                    shape = CircleShape
-                )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Mic,
-                contentDescription = if (isConnected) "Stop" else "Start",
-                tint = if (isListening) Color.White else AccentColor,
-                modifier = Modifier.size(28.dp)
-            )
+            if (showSettingsButton) {
+                IconButton(onClick = onSettingsClick) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = Color.Gray
+                    )
+                }
+            } else {
+                Box(modifier = Modifier.size(48.dp))
+            }
+
+            if (inputMode == InputMode.AUDIO || !isConnected) {
+                IconButton(
+                    onClick = onMicClick,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .scale(micScale)
+                        .background(
+                            color = if (isListening) AccentColor else Color(0xFFF1F3F4),
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Mic,
+                        contentDescription = if (isConnected) "Stop" else "Start",
+                        tint = if (isListening) Color.White else AccentColor,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            } else {
+                Box(modifier = Modifier.size(56.dp))
+            }
+
+            if (isConnected) {
+                IconButton(
+                    onClick = onModeToggle,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            color = Color(0xFFF1F3F4),
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = if (inputMode == InputMode.AUDIO) Icons.Default.Keyboard else Icons.Rounded.Mic,
+                        contentDescription = "Toggle input mode",
+                        tint = AccentColor
+                    )
+                }
+            } else {
+                Box(modifier = Modifier.size(48.dp))
+            }
         }
     }
 }

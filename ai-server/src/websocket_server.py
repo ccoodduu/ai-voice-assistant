@@ -112,6 +112,9 @@ class PhoneAudioBridge:
         self.session_id = str(uuid.uuid4())
         self.gemini: Optional[GeminiLiveClient] = None
         self._running = False
+        self._response_mode = "audio"
+        self._gemini_task: Optional[asyncio.Task] = None
+        self._gemini_connected = asyncio.Event()
 
     async def run(self):
         """Main loop handling bidirectional audio streaming."""
@@ -119,36 +122,60 @@ class PhoneAudioBridge:
         logger.info(f"Session {self.session_id}: Starting")
 
         try:
-            self.gemini = GeminiLiveClient()
-            if self.mcp.tools:
-                self.gemini.register_tools(
-                    self.mcp.get_gemini_tool_declarations(),
-                    self.mcp.call_tool,
-                )
+            await self._start_gemini_session()
 
             await self._send_json({
                 "type": "session_ready",
                 "session_id": self.session_id,
+                "mode": self._response_mode,
                 "input_format": {"sample_rate": 16000, "channels": 1, "encoding": "pcm_s16le"},
                 "output_format": {"sample_rate": 24000, "channels": 1, "encoding": "pcm_s16le"},
             })
             logger.info(f"Session {self.session_id}: Sent session_ready, starting tasks")
 
-            async with asyncio.TaskGroup() as tg:
-                tg.create_task(self._receive_from_phone())
-                tg.create_task(self._receive_from_gemini())
+            await self._receive_from_phone()
 
-        except* websockets.ConnectionClosed as eg:
-            logger.info(f"Session {self.session_id}: Phone disconnected - {eg.exceptions}")
-        except* Exception as eg:
-            logger.error(f"Session {self.session_id}: Error - {eg.exceptions}")
+        except websockets.ConnectionClosed:
+            logger.info(f"Session {self.session_id}: Phone disconnected")
+        except Exception as e:
+            logger.error(f"Session {self.session_id}: Error - {e}")
             try:
-                await self._send_error("session_error", str(eg.exceptions))
+                await self._send_error("session_error", str(e))
             except:
                 pass
         finally:
             self._running = False
+            if self._gemini_task and not self._gemini_task.done():
+                self._gemini_task.cancel()
             logger.info(f"Session {self.session_id}: Ended")
+
+    async def _start_gemini_session(self):
+        """Start or restart Gemini session with current mode."""
+        self._gemini_connected.clear()
+
+        if self._gemini_task and not self._gemini_task.done():
+            self._gemini_task.cancel()
+            try:
+                await self._gemini_task
+            except asyncio.CancelledError:
+                pass
+
+        self.gemini = GeminiLiveClient(response_mode=self._response_mode)
+        if self.mcp.tools:
+            self.gemini.register_tools(
+                self.mcp.get_gemini_tool_declarations(),
+                self.mcp.call_tool,
+            )
+
+        self._gemini_task = asyncio.create_task(self._receive_from_gemini())
+
+        # Wait for Gemini to connect before returning
+        try:
+            await asyncio.wait_for(self._gemini_connected.wait(), timeout=10.0)
+        except asyncio.TimeoutError:
+            logger.error(f"Session {self.session_id}: Timeout waiting for Gemini connection")
+
+        logger.info(f"Session {self.session_id}: Started Gemini in {self._response_mode} mode")
 
     async def _receive_from_phone(self):
         """Receive audio from phone and forward to Gemini."""
@@ -180,6 +207,7 @@ class PhoneAudioBridge:
 
                 if event["type"] == "connected":
                     logger.info(f"Session {self.session_id}: Connected to Gemini")
+                    self._gemini_connected.set()
 
                 elif event["type"] == "audio":
                     await self.websocket.send(event["data"])
@@ -190,9 +218,8 @@ class PhoneAudioBridge:
 
                 elif event["type"] == "text":
                     await self._send_json({
-                        "type": "transcript",
+                        "type": "assistant_text",
                         "text": event["data"],
-                        "is_final": True,
                     })
 
                 elif event["type"] == "input_transcription":
@@ -228,6 +255,27 @@ class PhoneAudioBridge:
             action = data.get("action")
             if action == "end_session":
                 self._running = False
+
+        elif msg_type == "text_input":
+            text = data.get("text", "").strip()
+            if text and self.gemini and self.gemini.session:
+                logger.info(f"Session {self.session_id}: Received text input: {text[:50]}...")
+                await self._send_json({
+                    "type": "user_transcript",
+                    "text": text,
+                })
+                await self.gemini.send_text(text)
+
+        elif msg_type == "set_mode":
+            new_mode = data.get("mode", "audio")
+            if new_mode in ("audio", "text") and new_mode != self._response_mode:
+                logger.info(f"Session {self.session_id}: Switching mode from {self._response_mode} to {new_mode}")
+                self._response_mode = new_mode
+                await self._start_gemini_session()
+                await self._send_json({
+                    "type": "mode_changed",
+                    "mode": self._response_mode,
+                })
 
     async def _send_json(self, data: dict):
         """Send JSON message to phone."""

@@ -133,13 +133,18 @@ class OverlayLauncherActivity : ComponentActivity() {
                                 OverlayBottomBar(
                                     isConnected = isConnected,
                                     isListening = uiState.isListening,
+                                    inputMode = uiState.inputMode,
+                                    textInput = uiState.textInput,
+                                    onTextInputChange = viewModel::updateTextInput,
+                                    onSendText = viewModel::sendTextMessage,
                                     onMicClick = {
                                         if (isConnected) {
                                             viewModel.disconnect()
                                         } else {
                                             viewModel.connect()
                                         }
-                                    }
+                                    },
+                                    onModeToggle = viewModel::toggleInputMode
                                 )
                             }
                         }

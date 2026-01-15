@@ -2,17 +2,20 @@ package com.example.aivoice.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aivoice.audio.AudioCaptureManager
 import com.example.aivoice.audio.AudioPlaybackManager
 import com.example.aivoice.network.ConnectionState
+import com.example.aivoice.network.InputMode
 import com.example.aivoice.network.WebSocketEvent
 import com.example.aivoice.network.WebSocketManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
@@ -37,7 +40,9 @@ data class UiState(
     val errorMessage: String? = null,
     val chatMessages: List<ChatMessage> = emptyList(),
     val pendingUserText: String = "",
-    val pendingAssistantText: String = ""
+    val pendingAssistantText: String = "",
+    val inputMode: InputMode = InputMode.AUDIO,
+    val textInput: String = ""
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -114,6 +119,21 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                     is WebSocketEvent.TurnComplete -> {
                         finalizeAssistantMessage()
                     }
+                    is WebSocketEvent.AssistantTextReceived -> {
+                        finalizeUserMessage()
+                        val text = event.text.trim()
+                        if (text.isNotEmpty()) {
+                            _uiState.update {
+                                it.copy(
+                                    chatMessages = it.chatMessages + ChatMessage(text, isFromUser = false)
+                                )
+                            }
+                        }
+                    }
+                    is WebSocketEvent.ModeChanged -> {
+                        val mode = if (event.mode == "text") InputMode.TEXT else InputMode.AUDIO
+                        _uiState.update { it.copy(inputMode = mode) }
+                    }
                     is WebSocketEvent.Error -> {
                         _uiState.update {
                             it.copy(errorMessage = "${event.code}: ${event.message}")
@@ -171,19 +191,23 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
     }
 
     private fun observeAndCaptureAudio() {
-        uiState.map { it.connectionState }
-            .distinctUntilChanged()
-            .flatMapLatest { state ->
-                if (state == ConnectionState.CONNECTED) {
-                    _uiState.update { it.copy(isListening = true) }
-                    audioCaptureManager.startCapture()
-                } else {
-                    _uiState.update { it.copy(isListening = false) }
-                    flow { }
-                }
-            }.onEach { audioData ->
-                webSocketManager.sendAudio(audioData)
-            }.launchIn(viewModelScope)
+        combine(
+            uiState.map { it.connectionState }.distinctUntilChanged(),
+            uiState.map { it.inputMode }.distinctUntilChanged()
+        ) { connectionState, inputMode ->
+            Pair(connectionState, inputMode)
+        }.flatMapLatest { (connectionState, inputMode) ->
+            val shouldCapture = connectionState == ConnectionState.CONNECTED && inputMode == InputMode.AUDIO
+            if (shouldCapture) {
+                _uiState.update { it.copy(isListening = true) }
+                audioCaptureManager.startCapture()
+            } else {
+                _uiState.update { it.copy(isListening = false) }
+                flow { }
+            }
+        }.onEach { audioData ->
+            webSocketManager.sendAudio(audioData)
+        }.launchIn(viewModelScope)
     }
 
     fun updateServerUrl(url: String) {
@@ -200,6 +224,32 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
 
     fun disconnect() {
         webSocketManager.disconnect()
+    }
+
+    fun updateTextInput(text: String) {
+        _uiState.update { it.copy(textInput = text) }
+    }
+
+    fun sendTextMessage() {
+        val text = _uiState.value.textInput.trim()
+        if (text.isNotEmpty()) {
+            _uiState.update {
+                it.copy(
+                    chatMessages = it.chatMessages + ChatMessage(text, isFromUser = true),
+                    textInput = ""
+                )
+            }
+            webSocketManager.sendText(text)
+        }
+    }
+
+    fun toggleInputMode() {
+        val currentMode = _uiState.value.inputMode
+        val newMode = if (currentMode == InputMode.AUDIO) InputMode.TEXT else InputMode.AUDIO
+        Log.d("VoiceAssistant", "toggleInputMode: $currentMode -> $newMode")
+        _uiState.update { it.copy(inputMode = newMode) }
+        Log.d("VoiceAssistant", "State updated, new inputMode: ${_uiState.value.inputMode}")
+        webSocketManager.setMode(newMode)
     }
 
     override fun onCleared() {

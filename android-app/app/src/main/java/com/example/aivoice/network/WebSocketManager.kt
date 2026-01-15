@@ -16,10 +16,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
+enum class InputMode { AUDIO, TEXT }
+
 sealed class WebSocketEvent {
     data object Connected : WebSocketEvent()
     data object Disconnected : WebSocketEvent()
-    data class SessionReady(val sessionId: String) : WebSocketEvent()
+    data class SessionReady(val sessionId: String, val mode: String) : WebSocketEvent()
     data class AudioReceived(val data: ByteArray) : WebSocketEvent() {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -31,6 +33,8 @@ sealed class WebSocketEvent {
     data class TranscriptReceived(val text: String, val isFinal: Boolean) : WebSocketEvent()
     data class UserTranscriptReceived(val text: String) : WebSocketEvent()
     data class AssistantTranscriptReceived(val text: String) : WebSocketEvent()
+    data class AssistantTextReceived(val text: String) : WebSocketEvent()
+    data class ModeChanged(val mode: String) : WebSocketEvent()
     data object TurnComplete : WebSocketEvent()
     data class ToolCallReceived(val name: String, val status: String) : WebSocketEvent()
     data class Error(val code: String, val message: String) : WebSocketEvent()
@@ -101,7 +105,10 @@ class WebSocketManager {
             when (json.getString("type")) {
                 "session_ready" -> {
                     _connectionState.tryEmit(ConnectionState.CONNECTED)
-                    _events.tryEmit(WebSocketEvent.SessionReady(json.getString("session_id")))
+                    _events.tryEmit(WebSocketEvent.SessionReady(
+                        sessionId = json.getString("session_id"),
+                        mode = json.optString("mode", "audio")
+                    ))
                 }
                 "transcript" -> {
                     _events.tryEmit(
@@ -127,6 +134,12 @@ class WebSocketManager {
                 }
                 "turn_complete" -> {
                     _events.tryEmit(WebSocketEvent.TurnComplete)
+                }
+                "assistant_text" -> {
+                    _events.tryEmit(WebSocketEvent.AssistantTextReceived(json.getString("text")))
+                }
+                "mode_changed" -> {
+                    _events.tryEmit(WebSocketEvent.ModeChanged(json.getString("mode")))
                 }
                 "error" -> {
                     _events.tryEmit(
@@ -163,6 +176,22 @@ class WebSocketManager {
         val json = JSONObject().apply {
             put("type", "control")
             put("action", action)
+        }
+        webSocket?.send(json.toString())
+    }
+
+    fun sendText(text: String) {
+        val json = JSONObject().apply {
+            put("type", "text_input")
+            put("text", text)
+        }
+        webSocket?.send(json.toString())
+    }
+
+    fun setMode(mode: InputMode) {
+        val json = JSONObject().apply {
+            put("type", "set_mode")
+            put("mode", if (mode == InputMode.TEXT) "text" else "audio")
         }
         webSocket?.send(json.toString())
     }
