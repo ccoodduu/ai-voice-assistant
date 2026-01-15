@@ -35,7 +35,9 @@ data class UiState(
     val transcript: String = "",
     val lastToolCall: String = "",
     val errorMessage: String? = null,
-    val chatMessages: List<ChatMessage> = emptyList()
+    val chatMessages: List<ChatMessage> = emptyList(),
+    val pendingUserText: String = "",
+    val pendingAssistantText: String = ""
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -89,17 +91,25 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                     }
                     is WebSocketEvent.UserTranscriptReceived -> {
                         finalizeAssistantMessage()
-                        if (pendingUserText.isNotEmpty()) {
-                            pendingUserText.append(" ")
+                        val trimmed = event.text.trim()
+                        if (trimmed.isNotEmpty()) {
+                            val newText = if (pendingUserText.isEmpty()) trimmed
+                                else "$pendingUserText $trimmed"
+                            pendingUserText.clear()
+                            pendingUserText.append(newText)
+                            _uiState.update { it.copy(pendingUserText = newText) }
                         }
-                        pendingUserText.append(event.text)
                     }
                     is WebSocketEvent.AssistantTranscriptReceived -> {
                         finalizeUserMessage()
-                        if (pendingAssistantText.isNotEmpty()) {
-                            pendingAssistantText.append(" ")
+                        val trimmed = event.text.trim()
+                        if (trimmed.isNotEmpty()) {
+                            val newText = if (pendingAssistantText.isEmpty()) trimmed
+                                else "$pendingAssistantText $trimmed"
+                            pendingAssistantText.clear()
+                            pendingAssistantText.append(newText)
+                            _uiState.update { it.copy(pendingAssistantText = newText) }
                         }
-                        pendingAssistantText.append(event.text)
                     }
                     is WebSocketEvent.TurnComplete -> {
                         finalizeAssistantMessage()
@@ -113,7 +123,13 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                         audioPlaybackManager.release()
                         pendingUserText.clear()
                         pendingAssistantText.clear()
-                        _uiState.update { it.copy(chatMessages = emptyList()) }
+                        _uiState.update {
+                            it.copy(
+                                chatMessages = emptyList(),
+                                pendingUserText = "",
+                                pendingAssistantText = ""
+                            )
+                        }
                     }
                 }
             }
@@ -125,7 +141,10 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
             val text = pendingUserText.toString()
             pendingUserText.clear()
             _uiState.update {
-                it.copy(chatMessages = it.chatMessages + ChatMessage(text, isFromUser = true))
+                it.copy(
+                    chatMessages = it.chatMessages + ChatMessage(text, isFromUser = true),
+                    pendingUserText = ""
+                )
             }
         }
     }
@@ -135,7 +154,10 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
             val text = pendingAssistantText.toString()
             pendingAssistantText.clear()
             _uiState.update {
-                it.copy(chatMessages = it.chatMessages + ChatMessage(text, isFromUser = false))
+                it.copy(
+                    chatMessages = it.chatMessages + ChatMessage(text, isFromUser = false),
+                    pendingAssistantText = ""
+                )
             }
         }
     }

@@ -88,6 +88,8 @@ fun VoiceAssistantScreen(viewModel: VoiceAssistantViewModel) {
 
             ChatMessageList(
                 messages = uiState.chatMessages,
+                pendingUserText = uiState.pendingUserText,
+                pendingAssistantText = uiState.pendingAssistantText,
                 isListening = uiState.isListening,
                 modifier = Modifier
                     .weight(1f)
@@ -124,19 +126,26 @@ fun VoiceAssistantScreen(viewModel: VoiceAssistantViewModel) {
 @Composable
 private fun ChatMessageList(
     messages: List<ChatMessage>,
+    pendingUserText: String,
+    pendingAssistantText: String,
     isListening: Boolean,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
+    val totalItems = messages.size +
+        (if (pendingUserText.isNotEmpty()) 1 else 0) +
+        (if (pendingAssistantText.isNotEmpty()) 1 else 0)
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+    LaunchedEffect(totalItems, pendingUserText, pendingAssistantText) {
+        if (totalItems > 0) {
+            listState.animateScrollToItem(totalItems - 1)
         }
     }
 
+    val isEmpty = messages.isEmpty() && pendingUserText.isEmpty() && pendingAssistantText.isEmpty()
+
     Box(modifier = modifier) {
-        if (messages.isEmpty()) {
+        if (isEmpty) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -157,7 +166,17 @@ private fun ChatMessageList(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)
             ) {
                 items(messages, key = { it.timestamp }) { message ->
-                    ChatBubble(message = message)
+                    ChatBubble(text = message.text, isFromUser = message.isFromUser)
+                }
+                if (pendingUserText.isNotEmpty()) {
+                    item(key = "pending_user") {
+                        ChatBubble(text = pendingUserText, isFromUser = true, isStreaming = true)
+                    }
+                }
+                if (pendingAssistantText.isNotEmpty()) {
+                    item(key = "pending_assistant") {
+                        ChatBubble(text = pendingAssistantText, isFromUser = false, isStreaming = true)
+                    }
                 }
             }
         }
@@ -165,22 +184,26 @@ private fun ChatMessageList(
 }
 
 @Composable
-private fun ChatBubble(message: ChatMessage) {
+private fun ChatBubble(
+    text: String,
+    isFromUser: Boolean,
+    isStreaming: Boolean = false
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (message.isFromUser) Arrangement.End else Arrangement.Start
+        horizontalArrangement = if (isFromUser) Arrangement.End else Arrangement.Start
     ) {
         Box(
             modifier = Modifier
                 .widthIn(max = 300.dp)
                 .background(
-                    color = if (message.isFromUser) Color(0xFFE3F2FD) else Color(0xFFF5F5F5),
+                    color = if (isFromUser) Color(0xFFE3F2FD) else Color(0xFFF5F5F5),
                     shape = RoundedCornerShape(16.dp)
                 )
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             Text(
-                text = message.text,
+                text = if (isStreaming) "$text▌" else text,
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color.Black
             )
