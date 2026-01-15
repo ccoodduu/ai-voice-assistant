@@ -121,6 +121,7 @@ private fun FullScreenLayout(
                 pendingUserText = uiState.pendingUserText,
                 pendingAssistantText = uiState.pendingAssistantText,
                 isListening = uiState.isListening,
+                connectionState = uiState.connectionState,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
@@ -164,6 +165,7 @@ private fun ChatMessageList(
     pendingUserText: String,
     pendingAssistantText: String,
     isListening: Boolean,
+    connectionState: ConnectionState,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -186,7 +188,11 @@ private fun ChatMessageList(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (isListening) "Listening..." else "Tap the microphone to start",
+                    text = when {
+                        isListening -> "Listening..."
+                        connectionState == ConnectionState.CONNECTING -> "Connecting..."
+                        else -> "Tap the microphone to start"
+                    },
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.Gray
                 )

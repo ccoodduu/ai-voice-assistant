@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import io.github.ccoodduu.aivoice.network.ConnectionState
 import io.github.ccoodduu.aivoice.network.InputMode
 import io.github.ccoodduu.aivoice.viewmodel.ChatMessage
 
@@ -51,6 +52,7 @@ fun OverlayChatMessageList(
     pendingUserText: String,
     pendingAssistantText: String,
     isListening: Boolean,
+    connectionState: ConnectionState,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -73,7 +75,11 @@ fun OverlayChatMessageList(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (isListening) "Listening..." else "Tap the microphone to start",
+                    text = when {
+                        isListening -> "Listening..."
+                        connectionState == ConnectionState.CONNECTING -> "Connecting..."
+                        else -> "Tap the microphone to start"
+                    },
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.Gray
                 )

@@ -116,6 +116,7 @@ class OverlayLauncherActivity : ComponentActivity() {
                                     pendingUserText = uiState.pendingUserText,
                                     pendingAssistantText = uiState.pendingAssistantText,
                                     isListening = uiState.isListening,
+                                    connectionState = uiState.connectionState,
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxWidth()
