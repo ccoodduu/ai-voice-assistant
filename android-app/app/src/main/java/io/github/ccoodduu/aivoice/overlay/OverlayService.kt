@@ -46,6 +46,7 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
         return START_NOT_STICKY
     }
 
+    @Suppress("DEPRECATION")
     private fun showOverlay() {
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
