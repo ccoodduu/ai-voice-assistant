@@ -97,14 +97,17 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                         }
                     }
                     is WebSocketEvent.UserTranscriptReceived -> {
-                        finalizeAssistantMessage()
-                        val trimmed = event.text.trim()
-                        if (trimmed.isNotEmpty()) {
-                            val newText = if (pendingUserText.isEmpty()) trimmed
-                                else "$pendingUserText $trimmed"
-                            pendingUserText.clear()
-                            pendingUserText.append(newText)
-                            _uiState.update { it.copy(pendingUserText = newText) }
+                        // Skip in text mode - message already added locally when sent
+                        if (_uiState.value.inputMode == InputMode.AUDIO) {
+                            finalizeAssistantMessage()
+                            val trimmed = event.text.trim()
+                            if (trimmed.isNotEmpty()) {
+                                val newText = if (pendingUserText.isEmpty()) trimmed
+                                    else "$pendingUserText $trimmed"
+                                pendingUserText.clear()
+                                pendingUserText.append(newText)
+                                _uiState.update { it.copy(pendingUserText = newText) }
+                            }
                         }
                     }
                     is WebSocketEvent.AssistantTranscriptReceived -> {
@@ -123,13 +126,13 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                     }
                     is WebSocketEvent.AssistantTextReceived -> {
                         finalizeUserMessage()
-                        val text = event.text.trim()
-                        if (text.isNotEmpty()) {
-                            _uiState.update {
-                                it.copy(
-                                    chatMessages = it.chatMessages + ChatMessage(text = text, isFromUser = false)
-                                )
-                            }
+                        val trimmed = event.text.trim()
+                        if (trimmed.isNotEmpty()) {
+                            val newText = if (pendingAssistantText.isEmpty()) trimmed
+                                else "$pendingAssistantText $trimmed"
+                            pendingAssistantText.clear()
+                            pendingAssistantText.append(newText)
+                            _uiState.update { it.copy(pendingAssistantText = newText) }
                         }
                     }
                     is WebSocketEvent.ModeChanged -> {
