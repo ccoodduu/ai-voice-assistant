@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -68,7 +69,7 @@ fun OverlayContent(onDismiss: () -> Unit) {
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
                 color = Color.White
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.fillMaxSize().imePadding()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
