@@ -1,4 +1,4 @@
-package com.example.aivoice.audio
+package io.github.ccoodduu.aivoice.audio
 
 import android.media.AudioAttributes
 import android.media.AudioFormat

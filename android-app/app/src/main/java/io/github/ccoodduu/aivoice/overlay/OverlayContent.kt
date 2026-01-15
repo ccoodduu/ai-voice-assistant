@@ -1,4 +1,4 @@
-package com.example.aivoice.overlay
+package io.github.ccoodduu.aivoice.overlay
 
 import android.app.Application
 import androidx.compose.foundation.background
@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,9 +31,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.aivoice.network.ConnectionState
-import com.example.aivoice.ui.theme.AIVoiceAssistantTheme
-import com.example.aivoice.viewmodel.VoiceAssistantViewModel
+import io.github.ccoodduu.aivoice.network.ConnectionState
+import io.github.ccoodduu.aivoice.ui.theme.AIVoiceAssistantTheme
+import io.github.ccoodduu.aivoice.viewmodel.VoiceAssistantViewModel
 
 @Composable
 fun OverlayContent(onDismiss: () -> Unit) {

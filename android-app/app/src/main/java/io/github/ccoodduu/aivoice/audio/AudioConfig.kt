@@ -1,4 +1,4 @@
-package com.example.aivoice.audio
+package io.github.ccoodduu.aivoice.audio
 
 object AudioConfig {
     const val INPUT_SAMPLE_RATE = 16000

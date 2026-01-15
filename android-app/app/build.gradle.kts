@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.aivoice"
+    namespace = "io.github.ccoodduu.aivoice"
     compileSdk = 35
 
     defaultConfig {

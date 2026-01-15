@@ -1,4 +1,4 @@
-package com.example.aivoice.network
+package io.github.ccoodduu.aivoice.network
 
 import android.util.Log
 import kotlinx.coroutines.channels.BufferOverflow

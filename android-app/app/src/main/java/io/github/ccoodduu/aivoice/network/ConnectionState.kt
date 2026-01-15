@@ -1,4 +1,4 @@
-package com.example.aivoice.network
+package io.github.ccoodduu.aivoice.network
 
 enum class ConnectionState {
     DISCONNECTED,

@@ -1,4 +1,4 @@
-package com.example.aivoice
+package io.github.ccoodduu.aivoice
 
 import android.Manifest
 import android.app.KeyguardManager
@@ -16,9 +16,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import com.example.aivoice.ui.VoiceAssistantScreen
-import com.example.aivoice.ui.theme.AIVoiceAssistantTheme
-import com.example.aivoice.viewmodel.VoiceAssistantViewModel
+import io.github.ccoodduu.aivoice.ui.VoiceAssistantScreen
+import io.github.ccoodduu.aivoice.ui.theme.AIVoiceAssistantTheme
+import io.github.ccoodduu.aivoice.viewmodel.VoiceAssistantViewModel
 
 class MainActivity : ComponentActivity() {
 

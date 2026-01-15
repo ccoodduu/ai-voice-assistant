@@ -1,16 +1,16 @@
-package com.example.aivoice.viewmodel
+package io.github.ccoodduu.aivoice.viewmodel
 
 import android.app.Application
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.aivoice.audio.AudioCaptureManager
-import com.example.aivoice.audio.AudioPlaybackManager
-import com.example.aivoice.network.ConnectionState
-import com.example.aivoice.network.InputMode
-import com.example.aivoice.network.WebSocketEvent
-import com.example.aivoice.network.WebSocketManager
+import io.github.ccoodduu.aivoice.audio.AudioCaptureManager
+import io.github.ccoodduu.aivoice.audio.AudioPlaybackManager
+import io.github.ccoodduu.aivoice.network.ConnectionState
+import io.github.ccoodduu.aivoice.network.InputMode
+import io.github.ccoodduu.aivoice.network.WebSocketEvent
+import io.github.ccoodduu.aivoice.network.WebSocketManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -102,8 +102,7 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                             finalizeAssistantMessage()
                             val trimmed = event.text.trim()
                             if (trimmed.isNotEmpty()) {
-                                val newText = if (pendingUserText.isEmpty()) trimmed
-                                    else "$pendingUserText $trimmed"
+                                val newText = smartJoin(pendingUserText.toString(), trimmed)
                                 pendingUserText.clear()
                                 pendingUserText.append(newText)
                                 _uiState.update { it.copy(pendingUserText = newText) }

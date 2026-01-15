@@ -1,10 +1,9 @@
-package com.example.aivoice.overlay
+package io.github.ccoodduu.aivoice.overlay
 
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
-import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
 import android.view.WindowManager
