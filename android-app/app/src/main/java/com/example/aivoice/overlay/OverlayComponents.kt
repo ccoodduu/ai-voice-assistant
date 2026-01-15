@@ -60,7 +60,7 @@ fun OverlayChatMessageList(
 
     LaunchedEffect(totalItems, pendingUserText, pendingAssistantText) {
         if (totalItems > 0) {
-            listState.animateScrollToItem(totalItems - 1)
+            listState.animateScrollToItem(0)
         }
     }
 
@@ -84,21 +84,22 @@ fun OverlayChatMessageList(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
                 state = listState,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                reverseLayout = true,
+                verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Bottom),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)
             ) {
-                items(messages, key = { it.id }) { message ->
-                    OverlayChatBubble(text = message.text, isFromUser = message.isFromUser)
+                if (pendingAssistantText.isNotEmpty()) {
+                    item(key = "pending_assistant") {
+                        OverlayChatBubble(text = pendingAssistantText, isFromUser = false, isStreaming = true)
+                    }
                 }
                 if (pendingUserText.isNotEmpty()) {
                     item(key = "pending_user") {
                         OverlayChatBubble(text = pendingUserText, isFromUser = true, isStreaming = true)
                     }
                 }
-                if (pendingAssistantText.isNotEmpty()) {
-                    item(key = "pending_assistant") {
-                        OverlayChatBubble(text = pendingAssistantText, isFromUser = false, isStreaming = true)
-                    }
+                items(messages.reversed(), key = { it.id }) { message ->
+                    OverlayChatBubble(text = message.text, isFromUser = message.isFromUser)
                 }
             }
         }
