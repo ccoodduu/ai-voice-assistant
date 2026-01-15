@@ -27,7 +27,7 @@ class GeminiLiveClient:
         elif response_mode == "audio":
             self.model = "gemini-2.5-flash-native-audio-preview-12-2025"
         else:
-            self.model = "gemini-2.0-flash-exp"
+            self.model = "gemini-2.5-flash-lite"
         self.system_instruction = system_instruction or (
             "You are a helpful voice assistant that can control a phone via Tasker. "
             "When the user asks you to do something with their phone (like turning on "
