@@ -331,15 +331,9 @@ class PhoneAudioBridge:
                 await self.gemini.send_text(text)
 
         elif msg_type == "set_mode":
-            new_mode = data.get("mode", "audio")
-            if new_mode in ("audio", "text") and new_mode != self._response_mode:
-                logger.info(f"Session {self.session_id}: Switching mode from {self._response_mode} to {new_mode}")
-                self._response_mode = new_mode
-                await self._start_gemini_session()
-                await self._send_json({
-                    "type": "mode_changed",
-                    "mode": self._response_mode,
-                })
+            # Mode switching disabled - always use audio mode
+            # Text input still works, Gemini responds with audio
+            pass
 
     async def _send_json(self, data: dict):
         """Send JSON message to phone."""
