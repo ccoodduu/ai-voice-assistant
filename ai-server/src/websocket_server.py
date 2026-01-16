@@ -41,12 +41,15 @@ class MCPBridge:
                      transport can be 'sse' or 'http'.
         """
         for server in servers:
-            await self._connect_server(
-                server["name"],
-                server["url"],
-                server.get("transport", "sse"),
-                retries
-            )
+            try:
+                await self._connect_server(
+                    server["name"],
+                    server["url"],
+                    server.get("transport", "sse"),
+                    retries
+                )
+            except Exception as e:
+                logger.error(f"Failed to connect to {server['name']} MCP: {e}")
 
     async def _connect_server(self, name: str, url: str, transport: str, retries: int):
         """Connect to a single MCP server."""
@@ -332,7 +335,7 @@ class WebSocketServer:
         self.mcp = MCPBridge()
         await self.mcp.connect(mcp_url)
         if additional_mcps:
-            await self.mcp.connect_servers(additional_mcps)
+            await self.mcp.connect_servers(additional_mcps, retries=1)
 
         logger.info(f"Starting WebSocket server on ws://{self.host}:{self.port}")
 
