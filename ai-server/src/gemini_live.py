@@ -164,6 +164,7 @@ class GeminiLiveClient:
 
             try:
                 result = await self._tool_handler(name, args)
+                logger.info(f"Tool {name} result: {result}")
                 results.append({
                     "name": name,
                     "success": True,
