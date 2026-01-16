@@ -87,29 +87,64 @@ class MCPBridge:
                     logger.error(f"Failed to connect to {name} MCP after {retries} attempts")
                     return False
 
+    def _clean_property_schema(self, prop_def: dict) -> dict:
+        """Clean a property schema to be Gemini-compatible."""
+        prop_type = prop_def.get("type", "string")
+
+        # Handle anyOf/oneOf by picking the first non-null type
+        if "anyOf" in prop_def or "oneOf" in prop_def:
+            variants = prop_def.get("anyOf") or prop_def.get("oneOf", [])
+            for v in variants:
+                if v.get("type") and v.get("type") != "null":
+                    prop_type = v.get("type", "string")
+                    break
+            else:
+                prop_type = "string"
+
+        clean_prop = {"type": prop_type}
+
+        if "description" in prop_def:
+            clean_prop["description"] = prop_def["description"]
+
+        if "enum" in prop_def:
+            enum_vals = [str(v) for v in prop_def["enum"] if v is not None]
+            if enum_vals:
+                clean_prop["description"] = clean_prop.get("description", "") + f" (allowed values: {', '.join(enum_vals)})"
+
+        # Handle array items - Gemini needs items to have a type
+        if prop_type == "array":
+            items = prop_def.get("items", {})
+            if isinstance(items, dict):
+                item_type = items.get("type", "string")
+                if not item_type or item_type not in ("string", "number", "integer", "boolean"):
+                    item_type = "string"
+                clean_prop["items"] = {"type": item_type}
+            else:
+                clean_prop["items"] = {"type": "string"}
+
+        return clean_prop
+
     def get_gemini_tool_declarations(self) -> list[dict]:
         """Convert MCP tools to Gemini function declarations format."""
         declarations = []
         for name, tool in self.tools.items():
-            declaration = {
-                "name": name,
-                "description": tool["description"],
-            }
-            if tool["input_schema"].get("properties"):
-                clean_props = {}
-                for prop_name, prop_def in tool["input_schema"]["properties"].items():
-                    clean_prop = {"type": prop_def.get("type", "string")}
-                    if "description" in prop_def:
-                        clean_prop["description"] = prop_def["description"]
-                    if "enum" in prop_def:
-                        clean_prop["description"] = clean_prop.get("description", "") + f" (allowed values: {', '.join(prop_def['enum'])})"
-                    clean_props[prop_name] = clean_prop
-                declaration["parameters"] = {
-                    "type": "object",
-                    "properties": clean_props,
-                    "required": tool["input_schema"].get("required", []),
+            try:
+                declaration = {
+                    "name": name,
+                    "description": tool.get("description") or name,
                 }
-            declarations.append(declaration)
+                if tool["input_schema"].get("properties"):
+                    clean_props = {}
+                    for prop_name, prop_def in tool["input_schema"]["properties"].items():
+                        clean_props[prop_name] = self._clean_property_schema(prop_def)
+                    declaration["parameters"] = {
+                        "type": "object",
+                        "properties": clean_props,
+                        "required": tool["input_schema"].get("required", []),
+                    }
+                declarations.append(declaration)
+            except Exception as e:
+                logger.warning(f"Skipping tool {name} due to schema error: {e}")
         return declarations
 
     async def call_tool(self, name: str, arguments: dict):
