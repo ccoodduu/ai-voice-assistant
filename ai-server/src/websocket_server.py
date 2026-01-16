@@ -46,17 +46,18 @@ class MCPBridge:
                     server["name"],
                     server["url"],
                     server.get("transport", "sse"),
-                    retries
+                    retries,
+                    headers=server.get("headers")
                 )
             except Exception as e:
                 logger.error(f"Failed to connect to {server['name']} MCP: {e}")
 
-    async def _connect_server(self, name: str, url: str, transport: str, retries: int):
+    async def _connect_server(self, name: str, url: str, transport: str, retries: int, headers: dict = None):
         """Connect to a single MCP server."""
         for attempt in range(retries):
             try:
                 if transport == "http":
-                    client_context = streamablehttp_client(url)
+                    client_context = streamablehttp_client(url, headers=headers)
                 else:
                     client_context = sse_client(url)
 

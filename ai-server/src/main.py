@@ -141,12 +141,17 @@ def main():
 
         additional_mcps = []
         if args.spotify_mcp:
-            print("Spotify MCP enabled")
-            additional_mcps.append({
-                "name": "spotify",
-                "url": "https://spotify.server.open-mcp.org/latest/mcp",
-                "transport": "http",
-            })
+            spotify_token = os.getenv("SPOTIFY_MCP_TOKEN")
+            if spotify_token:
+                print("Spotify MCP enabled with token")
+                additional_mcps.append({
+                    "name": "spotify",
+                    "url": "https://spotify.server.open-mcp.org/latest/mcp",
+                    "transport": "http",
+                    "headers": {"Authorization": f"Bearer {spotify_token}"},
+                })
+            else:
+                print("Warning: SPOTIFY_MCP_TOKEN not set, skipping Spotify MCP")
 
         asyncio.run(run_websocket_server(
             port=args.ws_port,
