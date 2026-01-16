@@ -22,6 +22,7 @@ services:
     restart: unless-stopped
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PYTHONPATH=/app
     network_mode: host
     depends_on:
       - tasker-mcp
