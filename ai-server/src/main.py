@@ -122,6 +122,11 @@ def main():
         default="http://localhost:8100/sse",
         help="MCP server SSE URL (default: http://localhost:8100/sse)",
     )
+    parser.add_argument(
+        "--spotify-mcp",
+        action="store_true",
+        help="Enable Spotify MCP (hosted at open-mcp.org)",
+    )
     args = parser.parse_args()
 
     if not os.getenv("GOOGLE_API_KEY"):
@@ -133,7 +138,21 @@ def main():
     else:
         print(f"Starting WebSocket server on port {args.ws_port}...")
         print(f"MCP server: {args.mcp_url}")
-        asyncio.run(run_websocket_server(port=args.ws_port, mcp_url=args.mcp_url))
+
+        additional_mcps = []
+        if args.spotify_mcp:
+            print("Spotify MCP enabled")
+            additional_mcps.append({
+                "name": "spotify",
+                "url": "https://spotify.server.open-mcp.org/latest/mcp",
+                "transport": "http",
+            })
+
+        asyncio.run(run_websocket_server(
+            port=args.ws_port,
+            mcp_url=args.mcp_url,
+            additional_mcps=additional_mcps if additional_mcps else None
+        ))
 
 
 if __name__ == "__main__":

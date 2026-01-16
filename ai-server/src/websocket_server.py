@@ -12,6 +12,7 @@ from websockets.server import WebSocketServerProtocol
 
 from mcp import ClientSession
 from mcp.client.sse import sse_client
+from mcp.client.streamable_http import streamablehttp_client
 
 from .gemini_live import GeminiLiveClient
 
@@ -20,26 +21,49 @@ logger = logging.getLogger(__name__)
 
 
 class MCPBridge:
-    """MCP client supporting SSE transport for phone-tasker-mcp."""
+    """MCP client supporting SSE and HTTP transports for multiple MCP servers."""
 
     def __init__(self):
         self.exit_stack = AsyncExitStack()
         self.sessions: dict[str, ClientSession] = {}
         self.tools: dict[str, dict] = {}
+        self._tool_to_session: dict[str, str] = {}
 
     async def connect(self, sse_url: str = "http://localhost:8100/sse", retries: int = 5):
         """Connect to MCP server via SSE with retry logic."""
+        await self._connect_server("tasker", sse_url, "sse", retries)
+
+    async def connect_servers(self, servers: list[dict], retries: int = 5):
+        """Connect to multiple MCP servers.
+
+        Args:
+            servers: List of server configs with 'name', 'url', and 'transport' keys.
+                     transport can be 'sse' or 'http'.
+        """
+        for server in servers:
+            await self._connect_server(
+                server["name"],
+                server["url"],
+                server.get("transport", "sse"),
+                retries
+            )
+
+    async def _connect_server(self, name: str, url: str, transport: str, retries: int):
+        """Connect to a single MCP server."""
         for attempt in range(retries):
             try:
-                sse_transport = await self.exit_stack.enter_async_context(
-                    sse_client(sse_url)
-                )
-                read, write = sse_transport
+                if transport == "http":
+                    client_context = streamablehttp_client(url)
+                else:
+                    client_context = sse_client(url)
+
+                transport_streams = await self.exit_stack.enter_async_context(client_context)
+                read, write = transport_streams[0], transport_streams[1]
                 session = await self.exit_stack.enter_async_context(
                     ClientSession(read, write)
                 )
                 await session.initialize()
-                self.sessions["tasker"] = session
+                self.sessions[name] = session
 
                 response = await session.list_tools()
                 for tool in response.tools:
@@ -48,15 +72,15 @@ class MCPBridge:
                         "description": tool.description,
                         "input_schema": tool.inputSchema,
                     }
-                logger.info(f"Connected to MCP with {len(self.tools)} tools")
+                    self._tool_to_session[tool.name] = name
+                logger.info(f"Connected to {name} MCP ({transport}) with {len(response.tools)} tools")
                 return True
             except Exception as e:
-                logger.warning(f"MCP connection attempt {attempt + 1}/{retries} failed: {e}")
+                logger.warning(f"{name} MCP connection attempt {attempt + 1}/{retries} failed: {e}")
                 if attempt < retries - 1:
                     await asyncio.sleep(2)
-                    self.exit_stack = AsyncExitStack()
                 else:
-                    logger.error(f"Failed to connect to MCP after {retries} attempts")
+                    logger.error(f"Failed to connect to {name} MCP after {retries} attempts")
                     return False
 
     def get_gemini_tool_declarations(self) -> list[dict]:
@@ -86,12 +110,11 @@ class MCPBridge:
 
     async def call_tool(self, name: str, arguments: dict):
         """Execute an MCP tool."""
-        for session in self.sessions.values():
-            response = await session.list_tools()
-            tool_names = [t.name for t in response.tools]
-            if name in tool_names:
-                result = await session.call_tool(name, arguments)
-                return result.content
+        session_name = self._tool_to_session.get(name)
+        if session_name and session_name in self.sessions:
+            session = self.sessions[session_name]
+            result = await session.call_tool(name, arguments)
+            return result.content
         raise ValueError(f"Tool {name} not found")
 
     async def cleanup(self):
@@ -304,10 +327,12 @@ class WebSocketServer:
         self.mcp: Optional[MCPBridge] = None
         self.active_sessions: dict[str, PhoneAudioBridge] = {}
 
-    async def start(self, mcp_url: str = "http://localhost:8100/sse"):
+    async def start(self, mcp_url: str = "http://localhost:8100/sse", additional_mcps: list[dict] = None):
         """Start the WebSocket server."""
         self.mcp = MCPBridge()
         await self.mcp.connect(mcp_url)
+        if additional_mcps:
+            await self.mcp.connect_servers(additional_mcps)
 
         logger.info(f"Starting WebSocket server on ws://{self.host}:{self.port}")
 
@@ -331,7 +356,7 @@ class WebSocketServer:
             del self.active_sessions[bridge.session_id]
 
 
-async def run_websocket_server(port: int = 8765, mcp_url: str = "http://localhost:8100/sse"):
+async def run_websocket_server(port: int = 8765, mcp_url: str = "http://localhost:8100/sse", additional_mcps: list[dict] = None):
     """Run the WebSocket server."""
     server = WebSocketServer(port=port)
-    await server.start(mcp_url)
+    await server.start(mcp_url, additional_mcps)
