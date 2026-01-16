@@ -28,7 +28,7 @@ services:
       - tasker-mcp
     volumes:
       - ./ai-server/src:/app/src:ro
-    command: ["python", "-m", "src.main", "--mode", "websocket", "--ws-port", "8765", "--spotify-mcp"]
+    command: ["python", "-m", "src.main", "--mode", "websocket", "--ws-port", "8765"]
 
   # Legacy: gemini-live-mcp for local microphone mode
   gemini-live:
