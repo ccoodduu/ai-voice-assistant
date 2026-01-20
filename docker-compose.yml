@@ -26,7 +26,7 @@ services:
       - STUDIEPLUS_SCHOOL=${STUDIEPLUS_SCHOOL:-TECHCOLLEGE}
       - PYTHONPATH=/app/src
       - MCP_TRANSPORT=sse
-      - PORT=8101
+      - MCP_PORT=8101
     network_mode: host
     volumes:
       - ./studieplus-mcp/src:/app/src:ro

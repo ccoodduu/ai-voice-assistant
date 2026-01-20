@@ -14,10 +14,6 @@ COPY src/ src/
 
 RUN uv pip install --system .
 
-# Cloud Run sets PORT automatically, default to 8080
-ENV MCP_TRANSPORT=sse
-ENV PORT=8080
+EXPOSE 8101
 
-EXPOSE 8080
-
-CMD ["python", "-m", "mcp_server.server"]
+CMD ["studieplus-mcp", "--transport", "sse", "--port", "8101"]
