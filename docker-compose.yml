@@ -14,6 +14,21 @@ services:
       - ./phone-tasker-mcp/tasker_mcp:/app/tasker_mcp:ro
     command: ["python", "-m", "tasker_mcp.server", "--transport", "sse", "--port", "8100"]
 
+  studieplus-mcp:
+    build:
+      context: ./studieplus-mcp
+      dockerfile: Dockerfile
+    container_name: studieplus-mcp
+    restart: unless-stopped
+    environment:
+      - STUDIEPLUS_USERNAME=${STUDIEPLUS_USERNAME}
+      - STUDIEPLUS_PASSWORD=${STUDIEPLUS_PASSWORD}
+      - STUDIEPLUS_SCHOOL=${STUDIEPLUS_SCHOOL:-TECHCOLLEGE}
+    network_mode: host
+    volumes:
+      - ./studieplus-mcp/src:/app/src:ro
+    command: ["python", "-m", "mcp_server.server", "--transport", "sse", "--port", "8101"]
+
   ai-server:
     build:
       context: ./ai-server
@@ -27,9 +42,10 @@ services:
     network_mode: host
     depends_on:
       - tasker-mcp
+      - studieplus-mcp
     volumes:
       - ./ai-server/src:/app/src:ro
-    command: ["python", "-m", "src.main", "--mode", "websocket", "--ws-port", "8765"]
+    command: ["python", "-m", "src.main", "--mode", "websocket", "--ws-port", "8765", "--studieplus-mcp"]
 
   # Legacy: gemini-live-mcp for local microphone mode
   gemini-live:

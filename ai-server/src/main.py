@@ -127,6 +127,11 @@ def main():
         action="store_true",
         help="Enable Spotify MCP (hosted at open-mcp.org)",
     )
+    parser.add_argument(
+        "--studieplus-mcp",
+        action="store_true",
+        help="Enable Studie+ MCP for school homework",
+    )
     args = parser.parse_args()
 
     if not os.getenv("GOOGLE_API_KEY"):
@@ -152,6 +157,14 @@ def main():
                 })
             else:
                 print("Warning: SPOTIFY_MCP_TOKEN not set, skipping Spotify MCP")
+
+        if args.studieplus_mcp:
+            print("Studie+ MCP enabled")
+            additional_mcps.append({
+                "name": "studieplus",
+                "url": "http://localhost:8101/sse",
+                "transport": "sse",
+            })
 
         asyncio.run(run_websocket_server(
             port=args.ws_port,
