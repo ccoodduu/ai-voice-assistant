@@ -8,7 +8,7 @@ from typing import Optional
 sys.path.append(str(Path(__file__).parent.parent))
 
 from studieplus_scraper import api
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 # System instructions for LLMs using this MCP server
 SYSTEM_INSTRUCTIONS = """
