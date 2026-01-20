@@ -329,9 +329,10 @@ async def load_lesson_file(file_url: str, file_name: str) -> dict:
 
 
 if __name__ == "__main__":
-    # Support both stdio (Claude Desktop) and SSE (Docker/Pi) transports
+    # Support both stdio (Claude Desktop) and SSE (Docker/Cloud Run) transports
     transport = os.getenv("MCP_TRANSPORT", "stdio")
-    port = int(os.getenv("MCP_PORT", "8101"))
+    # Cloud Run uses PORT, fallback to MCP_PORT for local dev
+    port = int(os.getenv("PORT", os.getenv("MCP_PORT", "8080")))
 
     if transport == "sse":
         mcp.run(transport="sse", port=port)
