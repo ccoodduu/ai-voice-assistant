@@ -365,7 +365,7 @@ class WebSocketServer:
         self.mcp = MCPBridge()
         await self.mcp.connect(mcp_url)
         if additional_mcps:
-            await self.mcp.connect_servers(additional_mcps, retries=1)
+            await self.mcp.connect_servers(additional_mcps, retries=5)
 
         logger.info(f"Starting WebSocket server on ws://{self.host}:{self.port}")
 
