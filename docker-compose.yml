@@ -25,10 +25,12 @@ services:
       - STUDIEPLUS_PASSWORD=${STUDIEPLUS_PASSWORD}
       - STUDIEPLUS_SCHOOL=${STUDIEPLUS_SCHOOL:-TECHCOLLEGE}
       - PYTHONPATH=/app/src
+      - MCP_TRANSPORT=sse
+      - MCP_PORT=8101
     network_mode: host
     volumes:
       - ./studieplus-mcp/src:/app/src:ro
-    command: ["python", "-m", "mcp_server.server", "--transport", "sse", "--port", "8101"]
+    command: ["python", "-m", "mcp_server.server"]
 
   ai-server:
     build:

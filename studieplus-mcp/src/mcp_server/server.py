@@ -328,19 +328,12 @@ async def load_lesson_file(file_url: str, file_name: str) -> dict:
     return result
 
 
-def main():
-    """Run the MCP server with optional SSE transport for container deployment."""
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--transport", default="sse", choices=["stdio", "sse"])
-    parser.add_argument("--port", type=int, default=8000)
-    args = parser.parse_args()
-
-    if args.transport == "sse":
-        mcp.run(transport="sse", port=args.port)
-    else:
-        mcp.run()
-
-
 if __name__ == "__main__":
-    main()
+    # Support both stdio (Claude Desktop) and SSE (Docker/Pi) transports
+    transport = os.getenv("MCP_TRANSPORT", "stdio")
+    port = int(os.getenv("MCP_PORT", "8101"))
+
+    if transport == "sse":
+        mcp.run(transport="sse", port=port)
+    else:
+        mcp.run()  # Default: stdio for Claude Desktop
