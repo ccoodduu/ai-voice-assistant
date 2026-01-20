@@ -24,6 +24,7 @@ services:
       - STUDIEPLUS_USERNAME=${STUDIEPLUS_USERNAME}
       - STUDIEPLUS_PASSWORD=${STUDIEPLUS_PASSWORD}
       - STUDIEPLUS_SCHOOL=${STUDIEPLUS_SCHOOL:-TECHCOLLEGE}
+      - PYTHONPATH=/app/src
     network_mode: host
     volumes:
       - ./studieplus-mcp/src:/app/src:ro
