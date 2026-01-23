@@ -12,13 +12,21 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir uv
 
-# Layer 2: WebRTC dependencies (new layer, apt-get is fast)
+# Layer 2: WebRTC + FFmpeg dependencies (for aiortc/av)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libopus0 \
     libopus-dev \
     libvpx-dev \
     libsrtp2-dev \
     pkg-config \
+    ffmpeg \
+    libavformat-dev \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavutil-dev \
+    libavfilter-dev \
+    libswscale-dev \
+    libswresample-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Layer 3: Python dependencies (cached if pyproject.toml unchanged)
