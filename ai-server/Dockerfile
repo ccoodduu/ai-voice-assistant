@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libopus-dev \
     libvpx-dev \
     libsrtp2-dev \
+    libssl-dev \
     pkg-config \
     ffmpeg \
     libavformat-dev \
