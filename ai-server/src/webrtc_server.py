@@ -11,7 +11,7 @@ from typing import Optional
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate
 from aiortc.mediastreams import MediaStreamTrack, AudioStreamTrack
-from av import AudioFrame, AudioResampler as AVResampler
+from av import AudioFrame
 import numpy as np
 
 from .gemini_live import GeminiLiveClient
@@ -25,37 +25,20 @@ GEMINI_INPUT_RATE = 16000
 GEMINI_OUTPUT_RATE = 24000
 
 
-class AudioResampler:
-    """Resample audio between WebRTC (48kHz) and Gemini (16kHz/24kHz)."""
+def resample_audio(audio_data: bytes, from_rate: int, to_rate: int) -> bytes:
+    """Resample audio using numpy linear interpolation."""
+    if from_rate == to_rate:
+        return audio_data
 
-    def __init__(self, from_rate: int, to_rate: int):
-        self.from_rate = from_rate
-        self.to_rate = to_rate
-        self._resampler = AVResampler(
-            format='s16',
-            layout='mono',
-            rate=to_rate,
-        )
+    samples = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32)
+    ratio = to_rate / from_rate
+    new_length = int(len(samples) * ratio)
 
-    def resample(self, audio_data: bytes, input_rate: int = None) -> bytes:
-        """Resample audio data to target rate."""
-        input_rate = input_rate or self.from_rate
-        if input_rate == self.to_rate:
-            return audio_data
+    old_indices = np.arange(len(samples))
+    new_indices = np.linspace(0, len(samples) - 1, new_length)
+    resampled = np.interp(new_indices, old_indices, samples)
 
-        samples = np.frombuffer(audio_data, dtype=np.int16)
-        frame = AudioFrame.from_ndarray(
-            samples.reshape(1, -1),
-            format='s16',
-            layout='mono'
-        )
-        frame.sample_rate = input_rate
-
-        resampled_frames = self._resampler.resample(frame)
-        if resampled_frames:
-            output = resampled_frames[0].to_ndarray()
-            return output.tobytes()
-        return b''
+    return resampled.astype(np.int16).tobytes()
 
 
 class GeminiAudioSender(AudioStreamTrack):
@@ -66,7 +49,6 @@ class GeminiAudioSender(AudioStreamTrack):
     def __init__(self):
         super().__init__()
         self._queue: asyncio.Queue[bytes] = asyncio.Queue(maxsize=100)
-        self._resampler = AudioResampler(GEMINI_OUTPUT_RATE, WEBRTC_SAMPLE_RATE)
         self._timestamp = 0
         self._samples_per_frame = 960  # 20ms at 48kHz
         self._start_time = None
@@ -74,7 +56,7 @@ class GeminiAudioSender(AudioStreamTrack):
     def add_audio(self, audio_data: bytes):
         """Add audio data from Gemini to be sent to client."""
         try:
-            resampled = self._resampler.resample(audio_data, GEMINI_OUTPUT_RATE)
+            resampled = resample_audio(audio_data, GEMINI_OUTPUT_RATE, WEBRTC_SAMPLE_RATE)
             self._queue.put_nowait(resampled)
         except asyncio.QueueFull:
             logger.warning("Audio queue full, dropping frame")
@@ -120,7 +102,6 @@ class WebRTCPeerSession:
         self.audio_sender: Optional[GeminiAudioSender] = None
         self._running = False
         self._gemini_task: Optional[asyncio.Task] = None
-        self._resampler = AudioResampler(WEBRTC_SAMPLE_RATE, GEMINI_INPUT_RATE)
         self._data_channel = None
         self._gemini_connected = asyncio.Event()
 
@@ -255,7 +236,7 @@ class WebRTCPeerSession:
 
                 if self.gemini and self.gemini.session:
                     audio_data = frame.to_ndarray().tobytes()
-                    resampled = self._resampler.resample(audio_data, frame.sample_rate)
+                    resampled = resample_audio(audio_data, frame.sample_rate, GEMINI_INPUT_RATE)
                     await self.gemini.send_audio(resampled)
         except Exception as e:
             if self._running:

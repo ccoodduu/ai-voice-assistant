@@ -1,0 +1,45 @@
+services:
+  tasker-mcp:
+    image: ghcr.io/ccoodduu/ai-voice-assistant-tasker-mcp:feature-webrtc-transport
+    container_name: tasker-mcp
+    restart: unless-stopped
+    environment:
+      - TASKER_PHONE_HOST=${TASKER_PHONE_HOST:-100.123.253.113}
+      - TASKER_PHONE_PORT=${TASKER_PHONE_PORT:-1821}
+      - TASKER_TIMEOUT=${TASKER_TIMEOUT:-5.0}
+    network_mode: host
+    volumes:
+      - ./phone-tasker-mcp/tasker_mcp:/app/tasker_mcp:ro
+    command: ["python", "-m", "tasker_mcp.server", "--transport", "sse", "--port", "8100"]
+
+  studieplus-mcp:
+    image: ghcr.io/ccoodduu/ai-voice-assistant-studieplus-mcp:feature-webrtc-transport
+    container_name: studieplus-mcp
+    restart: unless-stopped
+    environment:
+      - STUDIEPLUS_USERNAME=${STUDIEPLUS_USERNAME}
+      - STUDIEPLUS_PASSWORD=${STUDIEPLUS_PASSWORD}
+      - STUDIEPLUS_SCHOOL=${STUDIEPLUS_SCHOOL:-TECHCOLLEGE}
+      - PYTHONPATH=/app/src
+      - MCP_TRANSPORT=sse
+      - MCP_PORT=8101
+    network_mode: host
+    volumes:
+      - ./studieplus-mcp/src:/app/src:ro
+    command: ["python", "-m", "mcp_server.server"]
+
+  ai-server:
+    image: ghcr.io/ccoodduu/ai-voice-assistant-ai-server:feature-webrtc-transport
+    container_name: ai-server
+    restart: unless-stopped
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PYTHONPATH=/app
+      - SPOTIFY_MCP_TOKEN=${SPOTIFY_MCP_TOKEN}
+    network_mode: host
+    depends_on:
+      - tasker-mcp
+      - studieplus-mcp
+    volumes:
+      - ./ai-server/src:/app/src:ro
+    command: ["python", "-m", "src.main", "--mode", "webrtc", "--webrtc-port", "8766", "--studieplus-mcp"]
