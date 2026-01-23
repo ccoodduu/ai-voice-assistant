@@ -16,9 +16,7 @@ RUN pip install --no-cache-dir uv
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libopus0 \
     libopus-dev \
-    libvpx7 \
     libvpx-dev \
-    libsrtp2-1 \
     libsrtp2-dev \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
