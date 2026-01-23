@@ -1,6 +1,8 @@
 services:
   tasker-mcp:
-    image: ghcr.io/ccoodduu/ai-voice-assistant-tasker-mcp:feature-webrtc-transport
+    build:
+      context: ./phone-tasker-mcp
+      dockerfile: Dockerfile
     container_name: tasker-mcp
     restart: unless-stopped
     environment:
