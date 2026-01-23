@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libswresample-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Layer 3: Python dependencies (cached if pyproject.toml unchanged)
+# Layer 3: Python dependencies
 COPY pyproject.toml .
 RUN mkdir -p src && touch src/__init__.py && \
     uv pip install --system . && \
