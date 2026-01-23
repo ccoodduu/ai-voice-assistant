@@ -9,7 +9,7 @@ Voice-controlled AI assistant using Gemini Multimodal Live API with phone contro
 ## Architecture
 
 ```
-Android App ←──WebSocket──→ AI Server (Pi) ←──SSE──→ Tasker MCP (Pi)
+Android App ←──WebRTC/WS──→ AI Server (Pi) ←──SSE──→ Tasker MCP (Pi)
     │                           │                         │
     │                           ↓                         ↓
     │                    Gemini Live API           Phone HTTP (Tasker)
@@ -18,7 +18,7 @@ Android App ←──WebSocket──→ AI Server (Pi) ←──SSE──→ Tas
 ```
 
 **Components:**
-- `ai-server/` - WebSocket server bridging phone audio to Gemini, handles MCP tool calls
+- `ai-server/` - WebRTC/WebSocket server bridging phone audio to Gemini, handles MCP tool calls
 - `phone-tasker-mcp/` - MCP server exposing Tasker actions (torch, volume, weather, WoL)
 - `android-app/` - Kotlin/Compose app with overlay support for voice interaction
 - `gemini-live-mcp/` - Legacy local microphone mode (rarely used)
@@ -67,10 +67,13 @@ docker compose build tasker-mcp
 ## Local Development
 
 ```bash
-# AI Server
+# AI Server (WebSocket mode)
 cd ai-server
 pip install -e .
 python -m src.main --mode websocket --ws-port 8765
+
+# AI Server (WebRTC mode - with echo cancellation)
+python -m src.main --mode webrtc --webrtc-port 8766
 
 # Tasker MCP
 cd phone-tasker-mcp
@@ -90,6 +93,7 @@ TASKER_PHONE_PORT=1821
 ## Key Files
 
 - `ai-server/src/websocket_server.py` - WebSocket server, MCP bridge, phone audio handling
+- `ai-server/src/webrtc_server.py` - WebRTC server with echo cancellation support
 - `ai-server/src/gemini_live.py` - Gemini Live API client with tool calling
 - `phone-tasker-mcp/tasker_mcp/server.py` - MCP tools (torch, volume, weather, WoL)
 - `docker-compose.yml` - Container orchestration
@@ -106,5 +110,6 @@ When adding MCP tools, ensure schemas are Gemini-compatible:
 | Service | Port | Transport |
 |---------|------|-----------|
 | Tasker MCP | 8100 | SSE |
-| AI Server | 8765 | WebSocket |
+| AI Server (WebSocket) | 8765 | WebSocket |
+| AI Server (WebRTC) | 8766 | HTTP (signaling) |
 | Phone Tasker HTTP | 1821 | HTTP |

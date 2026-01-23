@@ -10,6 +10,7 @@ from .audio import AudioStream
 from .gemini_live import GeminiLiveClient
 from .mcp_client import MCPToolBridge
 from .websocket_server import run_websocket_server
+from .webrtc_server import run_webrtc_server
 
 
 async def run_assistant():
@@ -106,15 +107,21 @@ def main():
     parser = argparse.ArgumentParser(description="AI Voice Assistant Server")
     parser.add_argument(
         "--mode",
-        choices=["local", "websocket"],
+        choices=["local", "websocket", "webrtc"],
         default="local",
-        help="Run mode: local (microphone) or websocket (phone streaming)",
+        help="Run mode: local (microphone), websocket (phone streaming), or webrtc (with echo cancellation)",
     )
     parser.add_argument(
         "--ws-port",
         type=int,
         default=8765,
         help="WebSocket server port (default: 8765)",
+    )
+    parser.add_argument(
+        "--webrtc-port",
+        type=int,
+        default=8766,
+        help="WebRTC signaling server port (default: 8766)",
     )
     parser.add_argument(
         "--mcp-url",
@@ -141,9 +148,6 @@ def main():
     if args.mode == "local":
         asyncio.run(run_assistant())
     else:
-        print(f"Starting WebSocket server on port {args.ws_port}...")
-        print(f"MCP server: {args.mcp_url}")
-
         additional_mcps = []
         if args.spotify_mcp:
             spotify_token = os.getenv("SPOTIFY_MCP_TOKEN")
@@ -166,11 +170,22 @@ def main():
                 "transport": "sse",
             })
 
-        asyncio.run(run_websocket_server(
-            port=args.ws_port,
-            mcp_url=args.mcp_url,
-            additional_mcps=additional_mcps if additional_mcps else None
-        ))
+        if args.mode == "websocket":
+            print(f"Starting WebSocket server on port {args.ws_port}...")
+            print(f"MCP server: {args.mcp_url}")
+            asyncio.run(run_websocket_server(
+                port=args.ws_port,
+                mcp_url=args.mcp_url,
+                additional_mcps=additional_mcps if additional_mcps else None
+            ))
+        elif args.mode == "webrtc":
+            print(f"Starting WebRTC signaling server on port {args.webrtc_port}...")
+            print(f"MCP server: {args.mcp_url}")
+            asyncio.run(run_webrtc_server(
+                port=args.webrtc_port,
+                mcp_url=args.mcp_url,
+                additional_mcps=additional_mcps if additional_mcps else None
+            ))
 
 
 if __name__ == "__main__":

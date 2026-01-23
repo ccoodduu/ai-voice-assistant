@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.ccoodduu.aivoice.AIVoiceApplication
+import io.github.ccoodduu.aivoice.TransportMode
 import io.github.ccoodduu.aivoice.network.ConnectionState
 import io.github.ccoodduu.aivoice.network.InputMode
 import io.github.ccoodduu.aivoice.network.WebSocketEvent
@@ -34,13 +35,15 @@ data class UiState(
     val pendingUserText: String = "",
     val pendingAssistantText: String = "",
     val inputMode: InputMode = InputMode.AUDIO,
-    val textInput: String = ""
+    val textInput: String = "",
+    val transportMode: TransportMode = TransportMode.WEBRTC
 )
 
 class VoiceAssistantViewModel(application: Application) : AndroidViewModel(application) {
 
     private val app = application as AIVoiceApplication
     private val webSocketManager = app.webSocketManager
+    private val webRTCManager by lazy { app.webRTCManager }
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -52,9 +55,14 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
 
     init {
         val savedUrl = prefs.getString("server_url", "") ?: ""
-        _uiState.update { it.copy(serverUrl = savedUrl) }
+        val savedTransport = prefs.getString("transport_mode", "webrtc") ?: "webrtc"
+        val transportMode = if (savedTransport == "websocket") TransportMode.WEBSOCKET else TransportMode.WEBRTC
+
+        _uiState.update { it.copy(serverUrl = savedUrl, transportMode = transportMode) }
+        app.setTransportMode(transportMode)
 
         observeWebSocketEvents()
+        observeWebRTCEvents()
         observeConnectionState()
         observeInputMode()
 
@@ -63,76 +71,92 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    private fun handleEvent(event: WebSocketEvent) {
+        when (event) {
+            is WebSocketEvent.Connected -> {
+                _uiState.update { it.copy(errorMessage = null) }
+            }
+            is WebSocketEvent.SessionReady -> { }
+            is WebSocketEvent.AudioReceived -> { }
+            is WebSocketEvent.TranscriptReceived -> {
+                _uiState.update { it.copy(transcript = event.text) }
+            }
+            is WebSocketEvent.ToolCallReceived -> {
+                _uiState.update {
+                    it.copy(lastToolCall = "${event.name}: ${event.status}")
+                }
+            }
+            is WebSocketEvent.UserTranscriptReceived -> {
+                if (_uiState.value.inputMode == InputMode.AUDIO) {
+                    finalizeAssistantMessage()
+                    if (event.text.isNotEmpty()) {
+                        val newText = smartJoin(pendingUserText.toString(), event.text)
+                        pendingUserText.clear()
+                        pendingUserText.append(newText)
+                        _uiState.update { it.copy(pendingUserText = newText.trim()) }
+                    }
+                }
+            }
+            is WebSocketEvent.AssistantTranscriptReceived -> {
+                finalizeUserMessage()
+                if (event.text.isNotEmpty()) {
+                    val newText = smartJoin(pendingAssistantText.toString(), event.text)
+                    pendingAssistantText.clear()
+                    pendingAssistantText.append(newText)
+                    _uiState.update { it.copy(pendingAssistantText = newText.trim()) }
+                }
+            }
+            is WebSocketEvent.TurnComplete -> {
+                finalizeAssistantMessage()
+            }
+            is WebSocketEvent.AssistantTextReceived -> {
+                finalizeUserMessage()
+                if (event.text.isNotEmpty()) {
+                    val newText = smartJoin(pendingAssistantText.toString(), event.text)
+                    pendingAssistantText.clear()
+                    pendingAssistantText.append(newText)
+                    _uiState.update { it.copy(pendingAssistantText = newText.trim()) }
+                }
+            }
+            is WebSocketEvent.ModeChanged -> {
+                val mode = if (event.mode == "text") InputMode.TEXT else InputMode.AUDIO
+                _uiState.update { it.copy(inputMode = mode) }
+                app.setInputMode(mode)
+            }
+            is WebSocketEvent.Error -> {
+                _uiState.update {
+                    it.copy(errorMessage = "${event.code}: ${event.message}")
+                }
+            }
+            is WebSocketEvent.Disconnected -> {
+                pendingUserText.clear()
+                pendingAssistantText.clear()
+                _uiState.update {
+                    it.copy(
+                        chatMessages = emptyList(),
+                        pendingUserText = "",
+                        pendingAssistantText = ""
+                    )
+                }
+            }
+        }
+    }
+
     private fun observeWebSocketEvents() {
         viewModelScope.launch {
             webSocketManager.events.collect { event ->
-                when (event) {
-                    is WebSocketEvent.Connected -> {
-                        _uiState.update { it.copy(errorMessage = null) }
-                    }
-                    is WebSocketEvent.SessionReady -> { }
-                    is WebSocketEvent.AudioReceived -> { }
-                    is WebSocketEvent.TranscriptReceived -> {
-                        _uiState.update { it.copy(transcript = event.text) }
-                    }
-                    is WebSocketEvent.ToolCallReceived -> {
-                        _uiState.update {
-                            it.copy(lastToolCall = "${event.name}: ${event.status}")
-                        }
-                    }
-                    is WebSocketEvent.UserTranscriptReceived -> {
-                        if (_uiState.value.inputMode == InputMode.AUDIO) {
-                            finalizeAssistantMessage()
-                            if (event.text.isNotEmpty()) {
-                                val newText = smartJoin(pendingUserText.toString(), event.text)
-                                pendingUserText.clear()
-                                pendingUserText.append(newText)
-                                _uiState.update { it.copy(pendingUserText = newText.trim()) }
-                            }
-                        }
-                    }
-                    is WebSocketEvent.AssistantTranscriptReceived -> {
-                        finalizeUserMessage()
-                        if (event.text.isNotEmpty()) {
-                            val newText = smartJoin(pendingAssistantText.toString(), event.text)
-                            pendingAssistantText.clear()
-                            pendingAssistantText.append(newText)
-                            _uiState.update { it.copy(pendingAssistantText = newText.trim()) }
-                        }
-                    }
-                    is WebSocketEvent.TurnComplete -> {
-                        finalizeAssistantMessage()
-                    }
-                    is WebSocketEvent.AssistantTextReceived -> {
-                        finalizeUserMessage()
-                        if (event.text.isNotEmpty()) {
-                            val newText = smartJoin(pendingAssistantText.toString(), event.text)
-                            pendingAssistantText.clear()
-                            pendingAssistantText.append(newText)
-                            _uiState.update { it.copy(pendingAssistantText = newText.trim()) }
-                        }
-                    }
-                    is WebSocketEvent.ModeChanged -> {
-                        val mode = if (event.mode == "text") InputMode.TEXT else InputMode.AUDIO
-                        _uiState.update { it.copy(inputMode = mode) }
-                        app.setInputMode(mode)
-                    }
-                    is WebSocketEvent.Error -> {
-                        _uiState.update {
-                            it.copy(errorMessage = "${event.code}: ${event.message}")
-                        }
-                    }
-                    is WebSocketEvent.Disconnected -> {
-                        pendingUserText.clear()
-                        pendingAssistantText.clear()
-                        _uiState.update {
-                            it.copy(
-                                chatMessages = emptyList(),
-                                pendingUserText = "",
-                                pendingAssistantText = ""
-                            )
-                        }
-                    }
+                if (_uiState.value.transportMode == TransportMode.WEBSOCKET) {
+                    handleEvent(event)
+                }
+            }
+        }
+    }
+
+    private fun observeWebRTCEvents() {
+        viewModelScope.launch {
+            webRTCManager.events.collect { event ->
+                if (_uiState.value.transportMode == TransportMode.WEBRTC) {
+                    handleEvent(event)
                 }
             }
         }
@@ -171,7 +195,16 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
     private fun observeConnectionState() {
         viewModelScope.launch {
             webSocketManager.connectionState.collect { state ->
-                _uiState.update { it.copy(connectionState = state) }
+                if (_uiState.value.transportMode == TransportMode.WEBSOCKET) {
+                    _uiState.update { it.copy(connectionState = state) }
+                }
+            }
+        }
+        viewModelScope.launch {
+            webRTCManager.connectionState.collect { state ->
+                if (_uiState.value.transportMode == TransportMode.WEBRTC) {
+                    _uiState.update { it.copy(connectionState = state) }
+                }
             }
         }
     }
@@ -197,16 +230,32 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
         _uiState.update { it.copy(serverUrl = url) }
     }
 
+    fun setTransportMode(mode: TransportMode) {
+        _uiState.update { it.copy(transportMode = mode) }
+        app.setTransportMode(mode)
+        prefs.edit().putString("transport_mode", if (mode == TransportMode.WEBSOCKET) "websocket" else "webrtc").apply()
+    }
+
     fun connect() {
         val url = _uiState.value.serverUrl
         if (url.isNotBlank()) {
             prefs.edit().putString("server_url", url).apply()
-            webSocketManager.connect(url)
+
+            if (_uiState.value.transportMode == TransportMode.WEBRTC) {
+                val httpUrl = url.replace("ws://", "http://").replace("wss://", "https://")
+                webRTCManager.connect(httpUrl)
+            } else {
+                webSocketManager.connect(url)
+            }
         }
     }
 
     fun disconnect() {
-        webSocketManager.disconnect()
+        if (_uiState.value.transportMode == TransportMode.WEBRTC) {
+            webRTCManager.disconnect()
+        } else {
+            webSocketManager.disconnect()
+        }
     }
 
     fun updateTextInput(text: String) {
@@ -222,7 +271,11 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
                     textInput = ""
                 )
             }
-            webSocketManager.sendText(text)
+            if (_uiState.value.transportMode == TransportMode.WEBRTC) {
+                webRTCManager.sendText(text)
+            } else {
+                webSocketManager.sendText(text)
+            }
         }
     }
 
@@ -232,7 +285,10 @@ class VoiceAssistantViewModel(application: Application) : AndroidViewModel(appli
         Log.d("VoiceAssistant", "toggleInputMode: $currentMode -> $newMode")
         _uiState.update { it.copy(inputMode = newMode) }
         app.setInputMode(newMode)
-        webSocketManager.setMode(newMode)
+        if (_uiState.value.transportMode == TransportMode.WEBSOCKET) {
+            webSocketManager.setMode(newMode)
+        }
     }
 
 }
+

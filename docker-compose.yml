@@ -48,7 +48,7 @@ services:
       - studieplus-mcp
     volumes:
       - ./ai-server/src:/app/src:ro
-    command: ["python", "-m", "src.main", "--mode", "websocket", "--ws-port", "8765", "--studieplus-mcp"]
+    command: ["python", "-m", "src.main", "--mode", "webrtc", "--webrtc-port", "8766", "--studieplus-mcp"]
 
   # Legacy: gemini-live-mcp for local microphone mode
   gemini-live:

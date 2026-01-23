@@ -53,5 +53,9 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation(libs.okhttp)
+
+    // WebRTC for echo cancellation
+    implementation("io.getstream:stream-webrtc-android:1.1.1")
+
     debugImplementation(libs.androidx.ui.tooling)
 }
