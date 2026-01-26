@@ -65,36 +65,30 @@ class GeminiAudioSender(AudioStreamTrack):
 
     def __init__(self):
         super().__init__()
-        self._queue: asyncio.Queue[bytes] = asyncio.Queue(maxsize=100)
         self._resampler = AudioResampler(GEMINI_OUTPUT_RATE, WEBRTC_SAMPLE_RATE)
+        self._buffer = np.array([], dtype=np.int16)
         self._timestamp = 0
         self._samples_per_frame = 960  # 20ms at 48kHz
         self._start_time = None
+        self._lock = asyncio.Lock()
 
     def add_audio(self, audio_data: bytes):
-        """Add audio data from Gemini to be sent to client."""
-        try:
-            resampled = self._resampler.resample(audio_data, GEMINI_OUTPUT_RATE)
-            self._queue.put_nowait(resampled)
-        except asyncio.QueueFull:
-            logger.warning("Audio queue full, dropping frame")
+        """Add audio data from Gemini to the buffer."""
+        resampled = self._resampler.resample(audio_data, GEMINI_OUTPUT_RATE)
+        if resampled:
+            new_samples = np.frombuffer(resampled, dtype=np.int16)
+            self._buffer = np.concatenate([self._buffer, new_samples])
 
     async def recv(self) -> AudioFrame:
         """Called by aiortc to get the next audio frame."""
         if self._start_time is None:
             self._start_time = time.time()
 
-        try:
-            audio_data = await asyncio.wait_for(self._queue.get(), timeout=0.1)
-        except asyncio.TimeoutError:
+        if len(self._buffer) >= self._samples_per_frame:
+            samples = self._buffer[:self._samples_per_frame]
+            self._buffer = self._buffer[self._samples_per_frame:]
+        else:
             samples = np.zeros(self._samples_per_frame, dtype=np.int16)
-            audio_data = samples.tobytes()
-
-        samples = np.frombuffer(audio_data, dtype=np.int16)
-        if len(samples) < self._samples_per_frame:
-            samples = np.pad(samples, (0, self._samples_per_frame - len(samples)))
-        elif len(samples) > self._samples_per_frame:
-            samples = samples[:self._samples_per_frame]
 
         frame = AudioFrame.from_ndarray(
             samples.reshape(1, -1),
@@ -105,6 +99,12 @@ class GeminiAudioSender(AudioStreamTrack):
         frame.pts = self._timestamp
         frame.time_base = fractions.Fraction(1, WEBRTC_SAMPLE_RATE)
         self._timestamp += self._samples_per_frame
+
+        # Pace output to real-time
+        target_time = self._start_time + (self._timestamp / WEBRTC_SAMPLE_RATE)
+        wait = target_time - time.time()
+        if wait > 0:
+            await asyncio.sleep(wait)
 
         return frame
 
